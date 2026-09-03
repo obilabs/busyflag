@@ -85,6 +85,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
     )?;
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, app.autolaunch().is_enabled().unwrap_or(false), None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+    let report = MenuItem::with_id(app, "report", "Report a problem…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Busyflag", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -100,6 +101,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
             &test,
             &autostart,
             &settings,
+            &report,
             &PredefinedMenuItem::separator(app)?,
             &quit,
         ],
@@ -156,6 +158,11 @@ fn on_menu(app: &AppHandle, id: &str) {
             }
         }
         "settings" => crate::show_settings(app),
+        "report" => {
+            if let Err(e) = crate::report_problem() {
+                log::warn!("could not open issue page: {e}");
+            }
+        }
         "open_log" => {
             if let Ok(p) = app.path().app_log_dir() {
                 if let Err(e) = tauri_plugin_opener::open_path(p.join("busyflag.log"), None::<&str>) {
