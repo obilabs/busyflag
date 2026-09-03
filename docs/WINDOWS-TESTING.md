@@ -75,7 +75,7 @@ For more detail run `set RUST_LOG=debug` before `cargo tauri dev`.
 
 ## Result of test 1 (2026-09-03, Windows 11)
 
-All checks passed on the first build. Log and CSV are in `test-results/`.
+All checks passed on the first build.
 Mic use by Opera and camera use by Edge were detected within a second, the
 lock showed amber, unplugging the flag was noticed on the next write and the
 flag reconnected 14 s later on its own. Follow-ups made afterwards: executables

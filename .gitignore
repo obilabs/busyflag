@@ -3,3 +3,6 @@ busyflag/src-tauri/gen/schemas/
 .DS_Store
 __pycache__/
 .claude/
+docs/test-results/
+*.local.md
+HANDOFF*.md
