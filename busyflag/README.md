@@ -47,8 +47,11 @@ with an `org.freedesktop.ScreenSaver` D-Bus fallback.
 None of these need microphone or camera permission: the app only reads state,
 it never records.
 
-Known limits: on macOS, some Bluetooth headsets never report device-level
-activity; enable "trust per-app audio state" in Settings to work around it.
+Known limits: on older macOS versions some Bluetooth headsets were reported
+never to show device-level activity (Apple developer forums, 2024). Verified
+working with a Sony WH-CH710N on macOS 26.5; if a headset stays green for you,
+enable "trust per-app audio state" in Settings, which uses the per-process
+signal instead.
 On Windows the consent store is only maintained while Settings > Privacy >
 Microphone access is on.
 
