@@ -24,6 +24,14 @@ Made by [Obilabs](https://github.com/obilabs). Open source under Apache 2.0.
 - Activity log: which app or device used the mic or camera, when, and for how long. Local only, with retention and Clear
 - No network access, no telemetry
 
+## Tray states
+
+![Tray icon states](docs/tray-states.png)
+
+Left to right: free, busy, away (screen locked), paused, and the hollow rings
+shown when no Luxafor is connected. Each state has its own shape, so the light
+and the icon are readable without colour vision.
+
 ## How detection works
 
 | OS | Microphone | Camera |
