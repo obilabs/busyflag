@@ -94,7 +94,7 @@ Things that make a mass deployment noisy, and where Busyflag stands:
 | App silently disappears on an internal error | The detector loop restarts itself after a crash and every panic is written to the log. |
 | A corrupted config wipes the user's settings | An unparseable config is moved aside as `config.broken-<time>.json`, never overwritten. |
 | CPU or process churn on low-end hardware | macOS and Windows use in-process API calls. Linux runs one `pactl` per poll with a 2 s time limit and caches the monitor list for 30 s. |
-| Wrong state after sleep or USB hiccups | The flag reconnects within 2 s of reappearing; "not connected" is only shown after 3 s missing. |
+| Wrong state after sleep or USB hiccups | Presence is checked every 2 s, so an unplugged flag is noticed within 2 s even with no colour change; "not connected" is shown after 3 s missing; reconnect is automatic within 2 s of replug. |
 | Support tickets without context | Version is shown in Settings and logged at start; log path is one click away. |
 | Colour-blind users | Each tray state has a distinct shape as well as a colour. |
 | Gatekeeper / SmartScreen warnings | Sign and notarise macOS builds (Developer ID) and sign Windows installers before deploying. The CI workflow signs macOS builds when the `APPLE_*` secrets are set. |
