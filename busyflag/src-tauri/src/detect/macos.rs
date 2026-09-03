@@ -53,7 +53,52 @@ extern "C" {
     fn CFRelease(cf: *const c_void);
 }
 
-#[link(name = "CoreGraphics", kind = "framework")]
+#[link(name = "CoreServices", kind = "framework")]
+extern "C" {
+    fn LSCopyApplicationURLsForBundleIdentifier(bundle_id: *const c_void, err: *mut *const c_void) -> *const c_void;
+}
+
+#[link(name = "CoreFoundation", kind = "framework")]
+extern "C" {
+    fn CFArrayGetCount(arr: *const c_void) -> isize;
+    fn CFArrayGetValueAtIndex(arr: *const c_void, idx: isize) -> *const c_void;
+    fn CFURLCopyLastPathComponent(url: *const c_void) -> *const c_void;
+    fn CFRetain(cf: *const c_void) -> *const c_void;
+}
+
+/// "com.apple.QuickTimePlayerX" -> "QuickTime Player", via the app bundle Launch Services knows.
+fn app_display_name(bundle_id: &str) -> Option<String> {
+    let cstr = std::ffi::CString::new(bundle_id).ok()?;
+    unsafe {
+        let key = CFStringCreateWithCString(std::ptr::null(), cstr.as_ptr(), CF_UTF8);
+        if key.is_null() {
+            return None;
+        }
+        let mut err: *const c_void = std::ptr::null();
+        let urls = LSCopyApplicationURLsForBundleIdentifier(key, &mut err);
+        CFRelease(key);
+        if !err.is_null() {
+            CFRelease(err);
+        }
+        if urls.is_null() {
+            return None;
+        }
+        let name = if CFArrayGetCount(urls) > 0 {
+            let url = CFArrayGetValueAtIndex(urls, 0);
+            let last = CFURLCopyLastPathComponent(url);
+            // cfstring() releases the string it is given; the array still owns `url`.
+            let raw = if last.is_null() { None } else { Some((CFRetain(last) as usize).to_ne_bytes().to_vec()) };
+            if !last.is_null() {
+                CFRelease(last);
+            }
+            cfstring(raw)
+        } else {
+            None
+        };
+        CFRelease(urls);
+        name.map(|n| n.trim_end_matches(".app").to_string()).filter(|n| !n.is_empty())
+    }
+}
 extern "C" {
     fn CGSessionCopyCurrentDictionary() -> *const c_void;
 }
@@ -192,11 +237,22 @@ fn camera_running_somewhere(dev: u32) -> bool {
     first_u32(cmio_get(dev, PROP_RUNNING_SOMEWHERE)) != 0
 }
 
-pub struct MacDetector;
+pub struct MacDetector {
+    names: std::collections::HashMap<String, String>,
+}
 
 impl MacDetector {
     pub fn new() -> Self {
-        Self
+        Self { names: std::collections::HashMap::new() }
+    }
+
+    fn friendly(&mut self, bundle_id: String) -> String {
+        if let Some(n) = self.names.get(&bundle_id) {
+            return n.clone();
+        }
+        let n = app_display_name(&bundle_id).unwrap_or_else(|| bundle_id.clone());
+        self.names.insert(bundle_id, n.clone());
+        n
     }
 }
 
@@ -213,6 +269,7 @@ impl Detector for MacDetector {
         let apps: Vec<String> = processes_running_input()
             .into_iter()
             .filter(|a| !cfg.ignores_app(a))
+            .map(|a| self.friendly(a))
             .collect();
         if !out.is_empty() || cfg.process_level_detection {
             out.extend(apps);
