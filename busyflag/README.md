@@ -21,6 +21,7 @@ Made by [Obilabs](https://github.com/obilabs). Open source under Apache 2.0.
 - Admin-deployable defaults file for fleets, see `../docs/ENTERPRISE.md`
 - Settings window with live status; config is a plain JSON file
 - Tray icon uses shape as well as colour (dot, bar, moon, pause) so states are clear without colour vision
+- Activity log: which app or device used the mic or camera, when, and for how long. Local only, with retention and Clear
 - No network access, no telemetry
 
 ## How detection works

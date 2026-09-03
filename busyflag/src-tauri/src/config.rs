@@ -39,6 +39,10 @@ pub struct Config {
     /// Apps to ignore (bundle id on macOS, package/exe name on Windows,
     /// application.name on Linux). Case-insensitive substring match.
     pub ignore_apps: Vec<String>,
+    /// Keep a local log of which apps/devices used the mic or camera, and for how long.
+    pub activity_log: bool,
+    /// Days of activity to keep.
+    pub activity_retention_days: u64,
     /// macOS only: also treat a process reporting "input running" as busy.
     /// Works around Bluetooth headsets that never report device-level activity.
     pub process_level_detection: bool,
@@ -68,6 +72,8 @@ impl Default for Config {
                 "com.apple.SiriNCService".into(),
             ],
             process_level_detection: false,
+            activity_log: true,
+            activity_retention_days: 30,
         }
     }
 }
@@ -80,6 +86,7 @@ impl Config {
         self.fade_speed = self.fade_speed.max(1);
         self.force_busy_default_minutes = self.force_busy_default_minutes.min(24 * 60);
         self.test_duration_s = self.test_duration_s.clamp(1, 600);
+        self.activity_retention_days = self.activity_retention_days.clamp(1, 3650);
         self
     }
 
@@ -176,6 +183,10 @@ fn merge_into(base: &mut serde_json::Value, over: serde_json::Value) {
             b.insert(k.clone(), v.clone());
         }
     }
+}
+
+pub fn activity_path(app: &AppHandle) -> PathBuf {
+    path(app).with_file_name("activity.jsonl")
 }
 
 pub fn path(app: &AppHandle) -> PathBuf {

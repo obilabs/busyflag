@@ -114,6 +114,17 @@
     </section>
 
     <section>
+      <div class="sechead"><h2>Activity</h2><button id="clear_activity" class="link">Clear</button></div>
+      <label class="check"><input type="checkbox" id="activity_log"> Keep a log of what used the microphone and camera</label>
+      <div class="row">
+        <label for="activity_retention_days">Keep for</label>
+        <div class="ctl"><input type="number" id="activity_retention_days" min="1" max="3650" step="1"><span class="unit">days</span></div>
+        <div class="hint">Stored only on this computer, next to the config file. Nothing is sent anywhere.</div>
+      </div>
+      <div id="activity" class="activity"></div>
+    </section>
+
+    <section>
       <h2>Ignore</h2>
       <label for="ignore_apps">Apps (one per line; bundle id, exe name or app name, partial match)</label>
       <textarea id="ignore_apps" rows="4" spellcheck="false"></textarea>
