@@ -88,6 +88,74 @@ pub struct ActivityEntry {
 }
 
 const ACTIVITY_KEEP: usize = 500;
+const CSV_HEADER: &str = "start,end,duration_seconds,kind,source,start_ms,end_ms";
+
+fn local_stamp(ms: u64) -> String {
+    let fmt = time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+    let offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+    time::OffsetDateTime::from_unix_timestamp((ms / 1000) as i64)
+        .map(|t| t.to_offset(offset).format(&fmt).unwrap_or_default())
+        .unwrap_or_default()
+}
+
+fn csv_quote(s: &str) -> String {
+    if s.contains([',', '"', '\n']) {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
+}
+
+/// Minimal RFC 4180 field splitter (quotes, doubled quotes, commas in quotes).
+fn csv_fields(line: &str) -> Vec<String> {
+    let mut out = vec![];
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                cur.push('"');
+                chars.next();
+            }
+            '"' => quoted = !quoted,
+            ',' if !quoted => out.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
+        }
+    }
+    out.push(cur);
+    out
+}
+
+impl ActivityEntry {
+    fn to_csv(&self) -> String {
+        let end = self.end_ms.map(local_stamp).unwrap_or_default();
+        let dur = self.end_ms.map(|e| (e.saturating_sub(self.start_ms) / 1000).to_string()).unwrap_or_default();
+        format!(
+            "{},{},{},{},{},{},{}",
+            local_stamp(self.start_ms),
+            end,
+            dur,
+            self.kind,
+            csv_quote(&self.source),
+            self.start_ms,
+            self.end_ms.map(|e| e.to_string()).unwrap_or_default()
+        )
+    }
+
+    fn from_csv(line: &str) -> Option<Self> {
+        let f = csv_fields(line);
+        if f.len() < 7 {
+            return None;
+        }
+        Some(Self {
+            kind: f[3].clone(),
+            source: f[4].clone(),
+            start_ms: f[5].parse().ok()?,
+            end_ms: f[6].parse().ok(),
+        })
+    }
+}
 
 fn now_ms() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
@@ -103,10 +171,13 @@ struct Activity {
 impl Activity {
     fn load(path: std::path::PathBuf, retention_days: u64) -> Self {
         let cutoff = now_ms().saturating_sub(retention_days * 86_400_000);
-        let mut entries: VecDeque<ActivityEntry> = std::fs::read_to_string(&path)
+        // One-time migration from the earlier JSON-lines format.
+        let legacy = path.with_extension("jsonl");
+        let text = std::fs::read_to_string(&path).or_else(|_| std::fs::read_to_string(&legacy));
+        let mut entries: VecDeque<ActivityEntry> = text
             .map(|s| {
                 s.lines()
-                    .filter_map(|l| serde_json::from_str::<ActivityEntry>(l).ok())
+                    .filter_map(|l| ActivityEntry::from_csv(l).or_else(|| serde_json::from_str::<ActivityEntry>(l).ok()))
                     .filter(|e| e.start_ms >= cutoff)
                     .map(|mut e| {
                         // A row left open by a crash: close it at its start (duration unknown).
@@ -123,6 +194,7 @@ impl Activity {
         }
         let a = Self { entries, open: HashMap::new(), path };
         a.rewrite();
+        let _ = std::fs::remove_file(legacy);
         a
     }
 
@@ -179,12 +251,11 @@ impl Activity {
     }
 
     fn rewrite(&self) {
-        let mut out = String::new();
+        let mut out = String::from(CSV_HEADER);
+        out.push('\n');
         for e in &self.entries {
-            if let Ok(l) = serde_json::to_string(e) {
-                out.push_str(&l);
-                out.push('\n');
-            }
+            out.push_str(&e.to_csv());
+            out.push('\n');
         }
         if let Some(dir) = self.path.parent() {
             let _ = std::fs::create_dir_all(dir);

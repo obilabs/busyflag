@@ -155,6 +155,21 @@ fn install_panic_hook() {
     }));
 }
 
+/// Write the activity log as CSV into the Downloads folder and reveal it.
+#[tauri::command]
+fn export_activity_csv(app: AppHandle, mgr: tauri::State<Manager>) -> Result<String, String> {
+    let _ = &mgr;
+    // The live file is already CSV; the export is a snapshot copy so Excel can hold it open.
+    let csv = std::fs::read_to_string(config::activity_path(&app)).map_err(|e| e.to_string())?;
+    let offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+    let dir = app.path().download_dir().or_else(|_| app.path().home_dir()).map_err(|e| e.to_string())?;
+    let today = time::OffsetDateTime::now_utc().to_offset(offset).format(&time::macros::format_description!("[year][month][day]")).unwrap_or_default();
+    let path = dir.join(format!("busyflag-activity-{today}.csv"));
+    std::fs::write(&path, csv).map_err(|e| e.to_string())?;
+    let _ = tauri_plugin_opener::reveal_item_in_dir(&path);
+    Ok(path.display().to_string())
+}
+
 /// Open busyflag.log in the default text viewer.
 #[tauri::command]
 fn open_log(app: AppHandle) -> Result<(), String> {
@@ -228,6 +243,7 @@ pub fn run() {
             get_activity,
             clear_activity,
             open_log,
+            export_activity_csv,
             set_paused,
             set_forced,
             test_light,
