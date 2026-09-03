@@ -59,11 +59,10 @@ No signing needed. A GPG-signed apt repository can come later.
    git tag -a v1.0.0 -m "Busyflag 1.0.0"
    git push origin v1.0.0
    ```
-3. The workflow builds all platforms and creates the GitHub Release with the
-   installers attached and auto-generated notes. Edit the notes if needed;
-   with immutable releases on, do that before publishing (releases created by
-   the workflow are published immediately, so edit notes in the workflow's
-   draft step if you want a review pass; see below).
+3. The workflow builds all platforms and creates a **draft** GitHub Release
+   with the installers attached and auto-generated notes. Review the notes,
+   then click Publish. With immutable releases on, that's the point of no
+   return for the tag and its assets.
 4. Announce: link to https://github.com/obilabs/busyflag/releases/latest.
 
 ## Version policy

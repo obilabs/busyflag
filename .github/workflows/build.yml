@@ -113,7 +113,10 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # Created as a draft so the notes can be reviewed; publishing makes it
+      # immutable when the repository's "Immutable releases" setting is on.
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
+          draft: true
