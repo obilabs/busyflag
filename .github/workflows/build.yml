@@ -120,3 +120,5 @@ jobs:
           files: dist/*
           generate_release_notes: true
           draft: true
+          # 0.x and any tag with a suffix (v1.0.0-rc1) are pre-releases.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}
