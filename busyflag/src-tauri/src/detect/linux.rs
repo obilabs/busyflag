@@ -5,15 +5,41 @@
 use super::{dedup, Detector};
 use crate::config::Config;
 use std::collections::HashSet;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+/// Run a command with a hard time limit so a wedged sound server can't stall the poll loop.
+fn run_timeout(cmd: &str, args: &[&str], limit: Duration) -> Option<String> {
+    let mut child = Command::new(cmd).args(args).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if !status.success() {
+                    return None;
+                }
+                let mut s = String::new();
+                use std::io::Read;
+                child.stdout.take()?.read_to_string(&mut s).ok()?;
+                return Some(s);
+            }
+            Ok(None) if start.elapsed() > limit => {
+                let _ = child.kill();
+                let _ = child.wait();
+                log::warn!("{cmd} timed out after {limit:?}");
+                return None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(_) => return None,
+        }
+    }
+}
 
 fn pactl(args: &[&str]) -> Option<String> {
-    let out = Command::new("pactl").args(args).output().ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&out.stdout).into_owned())
+    run_timeout("pactl", args, Duration::from_secs(2))
 }
+
+const MONITOR_CACHE: Duration = Duration::from_secs(30);
 
 /// Indexes of monitor sources (loopbacks of outputs), which are not microphones.
 fn monitor_sources() -> HashSet<u64> {
@@ -49,8 +75,7 @@ fn monitor_sources() -> HashSet<u64> {
     set
 }
 
-fn pulse_capture_streams(cfg: &Config) -> Option<Vec<String>> {
-    let monitors = monitor_sources();
+fn pulse_capture_streams(cfg: &Config, monitors: &HashSet<u64>) -> Option<Vec<String>> {
     if let Some(json) = pactl(&["-f", "json", "list", "source-outputs"]) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
             let mut out = vec![];
@@ -154,30 +179,25 @@ fn video_device_users(cfg: &Config) -> Vec<String> {
 /// Session lock via systemd-logind's LockedHint, falling back to the
 /// org.freedesktop.ScreenSaver D-Bus interface (GNOME, KDE, xfce4-screensaver...).
 fn session_locked() -> bool {
-    let logind = Command::new("loginctl")
-        .args(["show-session", "auto", "-p", "LockedHint", "--value"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "yes")
+    let logind = run_timeout("loginctl", &["show-session", "auto", "-p", "LockedHint", "--value"], Duration::from_secs(2))
+        .map(|o| o.trim() == "yes")
         .unwrap_or(false);
     if logind {
         return true;
     }
-    Command::new("busctl")
-        .args([
-            "--user", "call", "org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver",
-            "org.freedesktop.ScreenSaver", "GetActive",
-        ])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "b true")
-        .unwrap_or(false)
+    run_timeout(
+        "busctl",
+        &["--user", "call", "org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver", "org.freedesktop.ScreenSaver", "GetActive"],
+        Duration::from_secs(2),
+    )
+    .map(|o| o.trim() == "b true")
+    .unwrap_or(false)
 }
 
 pub struct LinuxDetector {
     pulse_ok: bool,
+    monitors: HashSet<u64>,
+    monitors_at: Option<Instant>,
 }
 
 impl LinuxDetector {
@@ -186,14 +206,23 @@ impl LinuxDetector {
         if !pulse_ok {
             log::warn!("pactl unavailable; using ALSA /proc/asound fallback for microphone detection");
         }
-        Self { pulse_ok }
+        Self { pulse_ok, monitors: HashSet::new(), monitors_at: None }
+    }
+
+    fn monitors(&mut self) -> &HashSet<u64> {
+        if self.monitors_at.map(|t| t.elapsed() > MONITOR_CACHE).unwrap_or(true) {
+            self.monitors = monitor_sources();
+            self.monitors_at = Some(Instant::now());
+        }
+        &self.monitors
     }
 }
 
 impl Detector for LinuxDetector {
     fn mic_active(&mut self, cfg: &Config) -> Vec<String> {
         if self.pulse_ok {
-            if let Some(v) = pulse_capture_streams(cfg) {
+            let monitors = self.monitors().clone();
+            if let Some(v) = pulse_capture_streams(cfg, &monitors) {
                 return dedup(v);
             }
             self.pulse_ok = false;

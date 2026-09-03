@@ -7,6 +7,7 @@ mod tray;
 use config::Config;
 use manager::{Manager, Status, TestCmd};
 use tauri::{AppHandle, Emitter, Manager as _};
+use tauri_plugin_autostart::ManagerExt as _;
 
 trait EmitConfig {
     fn emit_config(&self) -> tauri::Result<()>;
@@ -117,6 +118,21 @@ struct Controls {
 }
 
 #[tauri::command]
+fn autostart_enabled(app: AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
+    let al = app.autolaunch();
+    let r = if enabled { al.enable() } else { al.disable() };
+    r.map_err(|e| e.to_string())?;
+    let now = al.is_enabled().unwrap_or(enabled);
+    tray::update(&app, &app.state::<Manager>().status());
+    Ok(now)
+}
+
+#[tauri::command]
 fn controls(mgr: tauri::State<Manager>) -> Controls {
     let forced = match mgr.forced() {
         manager::Forced::Off => -1,
@@ -126,10 +142,30 @@ fn controls(mgr: tauri::State<Manager>) -> Controls {
     Controls { paused: mgr.is_paused(), forced }
 }
 
+/// Route panics through the log so a crash leaves a trace in busyflag.log.
+fn install_panic_hook() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info.payload().downcast_ref::<&str>().map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "unknown panic".into());
+        let loc = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+        log::error!("panic: {msg} at {loc}");
+        default(info);
+    }));
+}
+
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 pub fn run() {
+    install_panic_hook();
     tauri::Builder::default()
         // A second launch just brings up the settings window of the running instance.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_settings(app)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -146,6 +182,16 @@ pub fn run() {
             let (use_camera, force_default) = (cfg.use_camera, cfg.force_busy_default_minutes);
             app.manage(Manager::start(handle.clone(), cfg));
             tray::build(&handle, use_camera, force_default)?;
+            // First run: start at login by default. A stamp file records that we asked once,
+            // so a user who turns it off is not overridden on the next launch.
+            let stamp = config::path(&handle).with_file_name("autostart.initialised");
+            if !stamp.exists() {
+                match handle.autolaunch().enable() {
+                    Ok(()) => log::info!("start at login enabled (first run)"),
+                    Err(e) => log::warn!("could not enable start at login: {e}"),
+                }
+                let _ = std::fs::write(&stamp, b"1");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -161,9 +207,12 @@ pub fn run() {
             get_status,
             config_path,
             log_path,
+            app_version,
             set_paused,
             set_forced,
             test_light,
+            autostart_enabled,
+            set_autostart,
             controls
         ])
         .run(tauri::generate_context!())

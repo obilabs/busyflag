@@ -74,6 +74,12 @@
     </section>
 
     <section>
+      <h2>Startup</h2>
+      <label class="check"><input type="checkbox" id="autostart"> Start Busyflag when I log in</label>
+      <div class="hint">Uses the system's own login-items mechanism. Applies immediately, no Save needed.</div>
+    </section>
+
+    <section>
       <h2>Tray actions</h2>
       <div class="row">
         <label for="force_busy_default_minutes">Force busy lasts</label>
@@ -126,6 +132,7 @@
       <div>
         <div class="muted">Config: <code id="config_path"></code> <button id="open_config" class="link">Show in folder</button></div>
         <div class="muted">Log: <code id="log_path"></code> <button id="open_log" class="link">Show in folder</button></div>
+        <div class="muted">Busyflag <span id="version"></span> · made by <a href="https://github.com/obilabs/busyflag" id="about_link">Obilabs</a></div>
       </div>
     </footer>
   </main>

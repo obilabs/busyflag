@@ -103,6 +103,81 @@ impl Config {
     }
 }
 
+/// Machine-wide defaults an administrator can deploy. Keys here override the
+/// built-in defaults; the user's own config overrides these in turn.
+pub fn system_defaults_path() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        PathBuf::from("/Library/Application Support/Busyflag/defaults.json")
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var_os("ProgramData").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
+        base.join("Busyflag").join("defaults.json")
+    }
+    #[cfg(target_os = "linux")]
+    {
+        PathBuf::from("/etc/busyflag/defaults.json")
+    }
+}
+
+fn read_json(p: &std::path::Path) -> Option<serde_json::Value> {
+    let s = std::fs::read_to_string(p).ok()?;
+    match serde_json::from_str::<serde_json::Value>(&s) {
+        Ok(v) if v.is_object() => Some(v),
+        Ok(_) => {
+            log::warn!("{} is not a JSON object; ignored", p.display());
+            None
+        }
+        Err(e) => {
+            log::warn!("{} unreadable ({e}); ignored", p.display());
+            None
+        }
+    }
+}
+
+/// If the user's config exists but cannot be parsed, move it aside so the
+/// rewrite below does not destroy their edits.
+fn preserve_broken(p: &std::path::Path) {
+    if !p.exists() {
+        return;
+    }
+    let ok = std::fs::read_to_string(p).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).map(|v| v.is_object()).unwrap_or(false);
+    if !ok {
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let backup = p.with_extension(format!("broken-{stamp}.json"));
+        match std::fs::rename(p, &backup) {
+            Ok(()) => log::warn!("config could not be parsed; kept a copy at {}", backup.display()),
+            Err(e) => log::warn!("config could not be parsed and could not be backed up: {e}"),
+        }
+    }
+}
+
+/// Built-in defaults <- system defaults <- user config, key by key.
+fn layered(app: &AppHandle) -> (Config, bool) {
+    let mut merged = serde_json::to_value(Config::default()).unwrap_or_default();
+    let mut have_user = false;
+    let sys = system_defaults_path();
+    if let Some(v) = read_json(&sys) {
+        log::info!("applying system defaults from {}", sys.display());
+        merge_into(&mut merged, v);
+    }
+    if let Some(v) = read_json(&path(app)) {
+        have_user = true;
+        merge_into(&mut merged, v);
+    }
+    let cfg = serde_json::from_value::<Config>(merged).unwrap_or_default().sanitised();
+    (cfg, have_user)
+}
+
+fn merge_into(base: &mut serde_json::Value, over: serde_json::Value) {
+    if let (Some(b), Some(o)) = (base.as_object_mut(), over.as_object()) {
+        for (k, v) in o {
+            b.insert(k.clone(), v.clone());
+        }
+    }
+}
+
 pub fn path(app: &AppHandle) -> PathBuf {
     let dir = app
         .path()
@@ -112,26 +187,14 @@ pub fn path(app: &AppHandle) -> PathBuf {
 }
 
 pub fn load(app: &AppHandle) -> Config {
-    let p = path(app);
-    match std::fs::read_to_string(&p) {
-        Ok(s) => match serde_json::from_str::<Config>(&s) {
-            Ok(c) => {
-                let c = c.sanitised();
-                // Rewrite so newly added keys appear in the file with their defaults.
-                let _ = save(app, &c);
-                c
-            }
-            Err(e) => {
-                log::warn!("config {} unreadable ({e}); using defaults", p.display());
-                Config::default()
-            }
-        },
-        Err(_) => {
-            let c = Config::default();
-            let _ = save(app, &c);
-            c
-        }
+    preserve_broken(&path(app));
+    let (cfg, have_user) = layered(app);
+    // Write the user file so every key is visible with its effective value
+    // (first run creates it; later runs pick up newly added keys).
+    if !have_user || serde_json::to_value(&cfg).ok() != read_json(&path(app)) {
+        let _ = save(app, &cfg);
     }
+    cfg
 }
 
 pub fn save(app: &AppHandle, cfg: &Config) -> Result<(), String> {
