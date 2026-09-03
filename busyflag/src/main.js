@@ -61,7 +61,7 @@ function showStatus(st) {
   const who = [...st.mic, ...st.cam];
   let text = { free: "Free", busy: "Busy", forced_busy: "Busy (forced)", locked: "Away (screen locked)", paused: "Paused" }[st.state] || st.state;
   if (st.state === "busy" && who.length) text += ": " + who.join(", ");
-  if (!st.light_connected) text += " · no Luxafor connected";
+  if (!st.light_connected) text += " · No Luxafor Flag found. Plug it in and it reconnects on its own.";
   $("headline").textContent = text;
 }
 
@@ -85,7 +85,17 @@ async function init() {
   showStatus(await invoke("get_status"));
   await refreshControls();
   $("config_path").textContent = await invoke("config_path");
+  $("autostart").checked = await invoke("autostart_enabled");
+  $("autostart").addEventListener("change", async (e) => {
+    try { e.target.checked = await invoke("set_autostart", { enabled: e.target.checked }); }
+    catch (err) { e.target.checked = !e.target.checked; $("saved").textContent = "Start at login: " + err; }
+  });
   $("log_path").textContent = await invoke("log_path");
+  $("version").textContent = await invoke("app_version");
+  $("about_link").addEventListener("click", async (e) => {
+    e.preventDefault();
+    try { await window.__TAURI__.opener.openUrl(e.target.href); } catch (err) { console.warn(err); }
+  });
   if (!navigator.userAgent.includes("Mac")) $("process_level_row").hidden = true;
 
   await listen("status", (e) => { showStatus(e.payload); refreshControls(); });

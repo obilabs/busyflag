@@ -61,7 +61,7 @@ impl Status {
         if self.light_connected {
             s
         } else {
-            format!("{s} (no light connected)")
+            format!("{s} · No Luxafor Flag found, plug it in")
         }
     }
 }
@@ -99,7 +99,20 @@ impl Manager {
         let worker = inner.clone();
         std::thread::Builder::new()
             .name("busyflag-poll".into())
-            .spawn(move || run_loop(worker))
+            .spawn(move || {
+                // A bug in a detector must not take the whole app down: log it and restart.
+                let mut restarts = 0u32;
+                while !worker.quitting.load(Ordering::Relaxed) {
+                    let w = worker.clone();
+                    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || run_loop(w)));
+                    if r.is_ok() {
+                        break;
+                    }
+                    restarts += 1;
+                    log::error!("poll loop crashed (restart #{restarts}); see message above");
+                    std::thread::sleep(Duration::from_secs(restarts.min(30) as u64));
+                }
+            })
             .expect("spawn poll thread");
         Self(inner)
     }
@@ -172,6 +185,10 @@ fn run_loop(inner: Arc<Inner>) {
     let mut last_busy: Option<Instant> = None;
     let mut last_colour: Option<Rgb> = None;
     let mut test_until: Option<Instant> = None;
+    // Report "not connected" only after the flag has been missing this long,
+    // so a USB re-enumeration blip doesn't flash the tray icon.
+    const DISCONNECT_GRACE: Duration = Duration::from_secs(3);
+    let mut missing_since: Option<Instant> = None;
 
     loop {
         if inner.quitting.load(Ordering::Relaxed) {
@@ -247,7 +264,14 @@ fn run_loop(inner: Arc<Inner>) {
             }
         }
 
-        let status = Status { state, mic, cam, light_connected: light.connected(), forced_minutes_left };
+        let light_connected = if light.connected() {
+            missing_since = None;
+            true
+        } else {
+            let since = *missing_since.get_or_insert(now);
+            now.duration_since(since) < DISCONNECT_GRACE
+        };
+        let status = Status { state, mic, cam, light_connected, forced_minutes_left };
         let changed = {
             let mut cur = inner.status.lock().unwrap();
             if *cur != status {

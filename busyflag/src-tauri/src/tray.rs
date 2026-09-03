@@ -7,6 +7,7 @@ use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager as _, Wry};
+use tauri_plugin_autostart::ManagerExt as _;
 
 pub const TRAY_ID: &str = "main";
 
@@ -17,6 +18,7 @@ pub struct TrayUi {
     /// (minutes, item); 0 = until turned off.
     force: Vec<(u64, CheckMenuItem<Wry>)>,
     camera: CheckMenuItem<Wry>,
+    autostart: CheckMenuItem<Wry>,
 }
 
 const FORCE_OPTIONS: &[(u64, &str)] = &[
@@ -65,6 +67,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
             &MenuItem::with_id(app, "test_off", "Off", true, None::<&str>)?,
         ],
     )?;
+    let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, app.autolaunch().is_enabled().unwrap_or(false), None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Busyflag", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -78,6 +81,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
             &camera,
             &PredefinedMenuItem::separator(app)?,
             &test,
+            &autostart,
             &settings,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -92,7 +96,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
         .on_menu_event(|app, ev| on_menu(app, ev.id().as_ref()))
         .build(app)?;
 
-    app.manage(TrayUi { status, pause, force_quick, force, camera });
+    app.manage(TrayUi { status, pause, force_quick, force, camera, autostart });
     Ok(())
 }
 
@@ -126,6 +130,14 @@ fn on_menu(app: &AppHandle, id: &str) {
         "test_blue" => mgr.test(TestCmd::Colour([0, 0, 255])),
         "test_blink" => mgr.test(TestCmd::Strobe([255, 255, 0])),
         "test_off" => mgr.test(TestCmd::Off),
+        "autostart" => {
+            let al = app.autolaunch();
+            let enabled = al.is_enabled().unwrap_or(false);
+            let r = if enabled { al.disable() } else { al.enable() };
+            if let Err(e) = r {
+                log::warn!("start at login toggle failed: {e}");
+            }
+        }
         "settings" => crate::show_settings(app),
         "quit" => {
             mgr.shutdown();
@@ -156,6 +168,7 @@ pub fn update(app: &AppHandle, st: &Status) {
             }
             let _ = ui.camera.set_checked(m.config().use_camera);
         }
+        let _ = ui.autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(false));
     }
 }
 
@@ -171,22 +184,45 @@ fn current_force_choice(m: &Manager) -> Option<u64> {
     }
 }
 
-/// A filled dot in the state colour; hollow ring when the light is not connected.
+/// Status glyph: colour plus a shape so states are distinguishable without colour.
+/// Free: dot. Busy: dot with a bar. Locked: crescent. Paused: pause bars. Hollow ring when no light.
 pub fn icon_for(st: &Status) -> Image<'static> {
-    let colour: Rgb = match st.state {
-        State::Free => [52, 199, 89],
-        State::Busy | State::ForcedBusy => [255, 59, 48],
-        State::Locked => [255, 170, 0],
-        State::Paused => [142, 142, 147],
+    let (colour, glyph): (Rgb, Glyph) = match st.state {
+        State::Free => ([52, 199, 89], Glyph::Dot),
+        State::Busy | State::ForcedBusy => ([255, 59, 48], Glyph::Bar),
+        State::Locked => ([255, 170, 0], Glyph::Moon),
+        State::Paused => ([142, 142, 147], Glyph::Pause),
     };
-    render_dot(36, colour, !st.light_connected)
+    render_glyph(36, colour, glyph, !st.light_connected)
 }
 
-fn render_dot(size: u32, rgb: Rgb, hollow: bool) -> Image<'static> {
+#[derive(Clone, Copy)]
+pub enum Glyph {
+    Dot,
+    Bar,
+    Moon,
+    Pause,
+}
+
+/// Is the point (relative to centre, in units of the radius) part of the glyph cut-out?
+fn cutout(glyph: Glyph, x: f32, y: f32) -> bool {
+    match glyph {
+        Glyph::Dot => false,
+        Glyph::Bar => x.abs() <= 0.55 && y.abs() <= 0.13,
+        Glyph::Moon => {
+            // Subtract an offset circle to leave a crescent on the left.
+            let (dx, dy) = (x - 0.45, y + 0.25);
+            (dx * dx + dy * dy).sqrt() <= 0.78
+        }
+        Glyph::Pause => (x.abs() - 0.22).abs() <= 0.1 && y.abs() <= 0.42,
+    }
+}
+
+fn render_glyph(size: u32, rgb: Rgb, glyph: Glyph, hollow: bool) -> Image<'static> {
     let mut px = vec![0u8; (size * size * 4) as usize];
     let c = size as f32 / 2.0;
-    let r_outer = c - 2.0;
-    let r_inner = if hollow { r_outer - 4.0 } else { -1.0 };
+    let r = c - 2.0;
+    let ring_inner = r - 4.0;
     let ss = 4; // supersampling per axis
     for y in 0..size {
         for x in 0..size {
@@ -196,7 +232,12 @@ fn render_dot(size: u32, rgb: Rgb, hollow: bool) -> Image<'static> {
                     let fx = x as f32 + (sx as f32 + 0.5) / ss as f32 - c;
                     let fy = y as f32 + (sy as f32 + 0.5) / ss as f32 - c;
                     let d = (fx * fx + fy * fy).sqrt();
-                    if d <= r_outer && d >= r_inner {
+                    let inside = if hollow {
+                        d <= r && d >= ring_inner
+                    } else {
+                        d <= r && !cutout(glyph, fx / r, fy / r)
+                    };
+                    if inside {
                         cover += 1;
                     }
                 }

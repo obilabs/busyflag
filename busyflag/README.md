@@ -16,8 +16,12 @@ Made by [Obilabs](https://github.com/obilabs). Open source under Apache 2.0.
 - Pause (light off) and Force busy from the tray: one click forces for 30 min (configurable), or pick 5 min to 2 h or until cleared
 - Hold time so a brief mic release doesn't flicker the light
 - Ignore lists for apps and input devices
+- Starts at login (toggle in the tray or Settings)
 - Survives unplugging: reconnects when the flag comes back
+- Admin-deployable defaults file for fleets, see `../docs/ENTERPRISE.md`
 - Settings window with live status; config is a plain JSON file
+- Tray icon uses shape as well as colour (dot, bar, moon, pause) so states are clear without colour vision
+- No network access, no telemetry
 
 ## How detection works
 
