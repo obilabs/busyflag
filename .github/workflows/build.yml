@@ -14,18 +14,22 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            name: macos-arm64
-          - os: macos-13
-            name: macos-x86_64
+            name: macos-universal
+            # One .app/.dmg that runs on Apple Silicon and Intel Macs.
+            args: --target universal-apple-darwin
           - os: windows-latest
             name: windows-x86_64
+            args: ""
           - os: ubuntu-22.04
             name: linux-x86_64
+            args: ""
           - os: ubuntu-22.04-arm
             name: linux-arm64
+            # AppImage tooling is unreliable on arm64; the Pi uses .deb anyway.
+            args: --bundles deb rpm
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -35,6 +39,8 @@ jobs:
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev patchelf
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -43,23 +49,31 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2" --locked
 
+      # Signing/notarisation only when the secrets exist. An empty APPLE_CERTIFICATE
+      # variable would otherwise make the bundler try to import a blank certificate.
+      - name: Configure macOS signing
+        if: runner.os == 'macOS' && secrets.APPLE_CERTIFICATE != ''
+        shell: bash
+        run: |
+          {
+            echo "APPLE_CERTIFICATE=${{ secrets.APPLE_CERTIFICATE }}"
+            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
+            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
+            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         working-directory: busyflag
-        run: cargo tauri build
-        env:
-          # Set these repository secrets to sign and notarise macOS builds:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: cargo tauri build ${{ matrix.args }}
 
       - name: Collect installers
         shell: bash
         run: |
           mkdir -p dist
-          find busyflag/src-tauri/target/release/bundle \
+          find busyflag/src-tauri/target -path '*/bundle/*' \
             \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
             -exec cp {} dist/ \;
           ls -la dist
