@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Busyflag</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span id="dot" class="dot"></span>
+      <div>
+        <h1>Busyflag</h1>
+        <p id="headline" class="muted">Starting…</p>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="switch"><input type="checkbox" id="paused"><span>Pause</span></label>
+      <label class="switch"><span>Force busy</span>
+        <select id="forced">
+          <option value="-1">Off</option>
+          <option value="5">5 min</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+          <option value="60">1 hour</option>
+          <option value="120">2 hours</option>
+          <option value="0">Until I turn it off</option>
+          <option value="left" hidden></option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Colours</h2>
+      <div class="row">
+        <label for="busy_colour">Busy</label>
+        <input type="color" id="busy_colour">
+        <button class="ghost" data-test="busy_colour">Try</button>
+      </div>
+      <div class="row">
+        <label for="free_colour">Free</label>
+        <input type="color" id="free_colour">
+        <button class="ghost" data-test="free_colour">Try</button>
+      </div>
+      <div class="row">
+        <label for="locked_colour">Away (locked)</label>
+        <input type="color" id="locked_colour">
+        <button class="ghost" data-test="locked_colour">Try</button>
+      </div>
+      <div class="row">
+        <label for="paused_colour">Paused</label>
+        <input type="color" id="paused_colour">
+        <button class="ghost" data-test="paused_colour">Try</button>
+      </div>
+      <div class="row">
+        <label for="brightness">Brightness</label>
+        <input type="range" id="brightness" min="1" max="100">
+        <output id="brightness_out">100%</output>
+      </div>
+    </section>
+
+    <section>
+      <h2>Detection</h2>
+      <label class="check"><input type="checkbox" id="use_camera"> Camera counts as busy</label>
+      <label class="check"><input type="checkbox" id="lock_detection"> Show the away colour while the screen is locked</label>
+      <label class="check" id="process_level_row"><input type="checkbox" id="process_level_detection"> Also trust per-app audio state (macOS, helps with Bluetooth headsets)</label>
+      <div class="row">
+        <label for="poll_interval_s">Check every</label>
+        <input type="number" id="poll_interval_s" min="0.1" max="10" step="0.1"><span class="unit">seconds</span>
+      </div>
+      <div class="row">
+        <label for="busy_hold_s">Stay busy for</label>
+        <input type="number" id="busy_hold_s" min="0" max="60" step="0.5"><span class="unit">seconds after activity stops</span>
+      </div>
+      <div class="row">
+        <label for="force_busy_default_minutes">Force busy lasts</label>
+        <input type="number" id="force_busy_default_minutes" min="0" max="1440" step="5"><span class="unit">minutes when clicked in the tray (0 = until turned off)</span>
+      </div>
+      <div class="row">
+        <label for="test_duration_s">Test lasts</label>
+        <input type="number" id="test_duration_s" min="1" max="600" step="1"><span class="unit">seconds (tray "Test light" and the Try buttons)</span>
+      </div>
+      <div class="row">
+        <label for="fade_speed">Fade speed</label>
+        <input type="number" id="fade_speed" min="1" max="255"><span class="unit">1 = fast, 255 = slow</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Ignore</h2>
+      <label for="ignore_apps">Apps (one per line; bundle id, exe name or app name, partial match)</label>
+      <textarea id="ignore_apps" rows="4" spellcheck="false"></textarea>
+      <label for="ignore_devices">Input devices (one per line, partial match)</label>
+      <textarea id="ignore_devices" rows="2" spellcheck="false"></textarea>
+    </section>
+
+    <section class="actions">
+      <button id="save" class="primary">Save</button>
+      <button id="test_blink" class="ghost">Blink light</button>
+      <button id="test_off" class="ghost">Light off</button>
+      <span id="saved" class="muted"></span>
+    </section>
+
+    <footer>
+      <div>
+        <div class="muted">Config: <code id="config_path"></code> <button id="open_config" class="link">Show in folder</button></div>
+        <div class="muted">Log: <code id="log_path"></code> <button id="open_log" class="link">Show in folder</button></div>
+      </div>
+    </footer>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>

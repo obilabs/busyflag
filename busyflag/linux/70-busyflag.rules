@@ -1,0 +1,5 @@
+# Luxafor Flag: allow the logged-in user to open the HID device without root.
+KERNEL=="hidraw*", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", TAG+="uaccess"
+# For headless use over SSH (no seat), use this instead of the uaccess tag:
+# KERNEL=="hidraw*", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", GROUP="plugdev", MODE="0660"
