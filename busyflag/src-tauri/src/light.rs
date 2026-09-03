@@ -22,18 +22,49 @@ pub struct Light {
     api: Option<HidApi>,
     dev: Option<HidDevice>,
     last_attempt: Option<Instant>,
+    last_verify: Option<Instant>,
 }
+
+const VERIFY_EVERY: Duration = Duration::from_secs(2);
 
 impl Light {
     pub fn new() -> Self {
         let api = HidApi::new().map_err(|e| log::error!("hidapi init failed: {e}")).ok();
-        let mut l = Self { api, dev: None, last_attempt: None };
+        let mut l = Self { api, dev: None, last_attempt: None, last_verify: None };
         l.try_connect(true);
         l
     }
 
     pub fn connected(&self) -> bool {
         self.dev.is_some()
+    }
+
+    /// While connected, confirm every couple of seconds that the flag is still
+    /// enumerated. Writes only happen on colour changes, so without this an
+    /// unplugged flag would go unnoticed until the next state change.
+    /// Returns true if the device was found to be gone.
+    pub fn verify(&mut self) -> bool {
+        if self.dev.is_none() {
+            return false;
+        }
+        if let Some(t) = self.last_verify {
+            if t.elapsed() < VERIFY_EVERY {
+                return false;
+            }
+        }
+        self.last_verify = Some(Instant::now());
+        let Some(api) = self.api.as_mut() else { return false };
+        if api.refresh_devices().is_err() {
+            return false;
+        }
+        let present = api.device_list().any(|d| d.vendor_id() == VID && d.product_id() == PID);
+        if !present {
+            log::warn!("Luxafor Flag unplugged");
+            self.dev = None;
+            self.last_attempt = Some(Instant::now());
+            return true;
+        }
+        false
     }
 
     /// Attempt to (re)open the device, rate limited unless `force`.

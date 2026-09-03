@@ -490,6 +490,7 @@ fn run_loop(inner: Arc<Inner>) {
             State::Paused => cfg.paused_colour,
         });
 
+        light.verify();
         let reconnected = light.try_connect(false);
         if reconnected {
             last_colour = None;
