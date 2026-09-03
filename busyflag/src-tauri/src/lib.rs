@@ -155,6 +155,13 @@ fn install_panic_hook() {
     }));
 }
 
+/// Open busyflag.log in the default text viewer.
+#[tauri::command]
+fn open_log(app: AppHandle) -> Result<(), String> {
+    let p = app.path().app_log_dir().map_err(|e| e.to_string())?.join("busyflag.log");
+    tauri_plugin_opener::open_path(p, None::<&str>).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_activity(mgr: tauri::State<Manager>) -> Vec<manager::ActivityEntry> {
     mgr.activity()
@@ -220,6 +227,7 @@ pub fn run() {
             app_version,
             get_activity,
             clear_activity,
+            open_log,
             set_paused,
             set_forced,
             test_light,

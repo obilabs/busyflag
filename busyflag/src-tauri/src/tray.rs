@@ -76,7 +76,12 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
         app,
         "Recent activity",
         true,
-        &[&recent_placeholder, &PredefinedMenuItem::separator(app)?, &MenuItem::with_id(app, "activity_full", "Show full log…", true, None::<&str>)?],
+        &[
+            &recent_placeholder,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "activity_full", "Show activity…", true, None::<&str>)?,
+            &MenuItem::with_id(app, "open_log", "Open log file", true, None::<&str>)?,
+        ],
     )?;
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, app.autolaunch().is_enabled().unwrap_or(false), None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
@@ -151,6 +156,13 @@ fn on_menu(app: &AppHandle, id: &str) {
             }
         }
         "settings" => crate::show_settings(app),
+        "open_log" => {
+            if let Ok(p) = app.path().app_log_dir() {
+                if let Err(e) = tauri_plugin_opener::open_path(p.join("busyflag.log"), None::<&str>) {
+                    log::warn!("could not open log: {e}");
+                }
+            }
+        }
         "activity_full" => {
             crate::show_settings(app);
             let _ = app.emit("show-activity", ());

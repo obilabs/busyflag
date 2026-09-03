@@ -47,6 +47,7 @@ footer { display: flex; flex-direction: column; gap: 4px; }
 a { color: var(--accent); text-decoration: none; }
 .sechead { display: flex; justify-content: space-between; align-items: baseline; }
 .sechead h2 { margin: 0; }
+.links { display: flex; gap: 8px; align-items: baseline; }
 .activity { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
 .act { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
 .act:last-child { border-bottom: none; }
