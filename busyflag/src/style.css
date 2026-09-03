@@ -42,4 +42,13 @@ button.link { border: none; background: none; color: var(--accent); padding: 0; 
 .actions { flex-direction: row; align-items: center; }
 footer { display: flex; flex-direction: column; gap: 4px; }
 a { color: var(--accent); text-decoration: none; }
+.sechead { display: flex; justify-content: space-between; align-items: baseline; }
+.sechead h2 { margin: 0; }
+.activity { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.act { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.act:last-child { border-bottom: none; }
+.act.live { background: color-mix(in srgb, var(--busy) 10%, transparent); }
+.act-when { color: var(--muted); white-space: nowrap; }
+.act-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-dur { color: var(--muted); white-space: nowrap; }
 code { font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }

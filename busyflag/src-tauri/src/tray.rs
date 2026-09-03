@@ -1,12 +1,12 @@
 //! System tray icon and menu.
 
 use crate::config::Rgb;
-use crate::manager::{Manager, State, Status, TestCmd};
+use crate::manager::{ActivityEntry, Manager, State, Status, TestCmd};
 use crate::EmitConfig;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager as _, Wry};
+use tauri::{AppHandle, Emitter as _, Manager as _, Wry};
 use tauri_plugin_autostart::ManagerExt as _;
 
 pub const TRAY_ID: &str = "main";
@@ -19,7 +19,11 @@ pub struct TrayUi {
     force: Vec<(u64, CheckMenuItem<Wry>)>,
     camera: CheckMenuItem<Wry>,
     autostart: CheckMenuItem<Wry>,
+    recent: Submenu<Wry>,
+    recent_placeholder: MenuItem<Wry>,
 }
+
+const RECENT_COUNT: usize = 5;
 
 const FORCE_OPTIONS: &[(u64, &str)] = &[
     (5, "5 minutes"),
@@ -67,6 +71,13 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
             &MenuItem::with_id(app, "test_off", "Off", true, None::<&str>)?,
         ],
     )?;
+    let recent_placeholder = MenuItem::with_id(app, "recent_none", "Nothing recorded yet", false, None::<&str>)?;
+    let recent = Submenu::with_items(
+        app,
+        "Recent activity",
+        true,
+        &[&recent_placeholder, &PredefinedMenuItem::separator(app)?, &MenuItem::with_id(app, "activity_full", "Show full log…", true, None::<&str>)?],
+    )?;
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, app.autolaunch().is_enabled().unwrap_or(false), None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Busyflag", true, None::<&str>)?;
@@ -80,6 +91,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
             &force_menu,
             &camera,
             &PredefinedMenuItem::separator(app)?,
+            &recent,
             &test,
             &autostart,
             &settings,
@@ -96,7 +108,7 @@ pub fn build(app: &AppHandle, use_camera: bool, force_default: u64) -> tauri::Re
         .on_menu_event(|app, ev| on_menu(app, ev.id().as_ref()))
         .build(app)?;
 
-    app.manage(TrayUi { status, pause, force_quick, force, camera, autostart });
+    app.manage(TrayUi { status, pause, force_quick, force, camera, autostart, recent, recent_placeholder });
     Ok(())
 }
 
@@ -139,6 +151,10 @@ fn on_menu(app: &AppHandle, id: &str) {
             }
         }
         "settings" => crate::show_settings(app),
+        "activity_full" => {
+            crate::show_settings(app);
+            let _ = app.emit("show-activity", ());
+        }
         "quit" => {
             mgr.shutdown();
             app.exit(0);
@@ -180,6 +196,55 @@ fn current_force_choice(m: &Manager) -> Option<u64> {
         crate::manager::Forced::Until(_) => {
             let left = m.forced_minutes_left().unwrap_or(0);
             FORCE_OPTIONS.iter().map(|(mins, _)| *mins).filter(|&mins| mins >= left && mins > 0).min()
+        }
+    }
+}
+
+fn ago(ms: u64) -> String {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    let s = now.saturating_sub(ms) / 1000;
+    match s {
+        0..=59 => "just now".into(),
+        60..=3599 => format!("{} min ago", s / 60),
+        3600..=86_399 => format!("{} h ago", s / 3600),
+        _ => format!("{} d ago", s / 86_400),
+    }
+}
+
+fn dur(ms: u64) -> String {
+    let s = (ms + 500) / 1000;
+    match s {
+        0..=59 => format!("{s} s"),
+        60..=3599 => format!("{} min", s / 60),
+        _ => format!("{:.1} h", s as f64 / 3600.0),
+    }
+}
+
+/// Rebuild the "Recent activity" submenu from the newest entries. Safe from any thread.
+pub fn update_activity(app: &AppHandle, entries: &[ActivityEntry]) {
+    let Some(ui) = app.try_state::<TrayUi>() else { return };
+    // Drop everything above the separator, then re-add.
+    if let Ok(items) = ui.recent.items() {
+        for item in items {
+            let id = item.id().as_ref().to_string();
+            if id.starts_with("recent_") {
+                let _ = ui.recent.remove(&item);
+            }
+        }
+    }
+    let recent: Vec<&ActivityEntry> = entries.iter().take(RECENT_COUNT).collect();
+    if recent.is_empty() {
+        let _ = ui.recent.insert(&ui.recent_placeholder, 0);
+        return;
+    }
+    for (i, e) in recent.iter().enumerate().rev() {
+        let icon = if e.kind == "cam" { "📷" } else { "🎙" };
+        let text = match e.end_ms {
+            None => format!("{icon} {} · in use now", e.source),
+            Some(end) => format!("{icon} {} · {} · {}", e.source, dur(end.saturating_sub(e.start_ms)), ago(e.start_ms)),
+        };
+        if let Ok(item) = MenuItem::with_id(app, format!("recent_{i}"), text, false, None::<&str>) {
+            let _ = ui.recent.insert(&item, 0);
         }
     }
 }

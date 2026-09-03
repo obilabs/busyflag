@@ -156,6 +156,16 @@ fn install_panic_hook() {
 }
 
 #[tauri::command]
+fn get_activity(mgr: tauri::State<Manager>) -> Vec<manager::ActivityEntry> {
+    mgr.activity()
+}
+
+#[tauri::command]
+fn clear_activity(mgr: tauri::State<Manager>) {
+    mgr.clear_activity();
+}
+
+#[tauri::command]
 fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -208,6 +218,8 @@ pub fn run() {
             config_path,
             log_path,
             app_version,
+            get_activity,
+            clear_activity,
             set_paused,
             set_forced,
             test_light,

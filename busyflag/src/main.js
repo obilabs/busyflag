@@ -31,6 +31,8 @@ function fill(cfg) {
   setSelect($("fade_speed"), cfg.fade_speed, (v) => "Custom (" + v + ")");
   setSelect($("force_busy_default_minutes"), cfg.force_busy_default_minutes, (v) => v + " minutes");
   $("test_duration_s").value = cfg.test_duration_s;
+  $("activity_log").checked = cfg.activity_log;
+  $("activity_retention_days").value = cfg.activity_retention_days;
   $("ignore_apps").value = cfg.ignore_apps.join("\n");
   $("ignore_devices").value = cfg.ignore_devices.join("\n");
 }
@@ -50,6 +52,8 @@ function read() {
     fade_speed: Number($("fade_speed").value),
     force_busy_default_minutes: Number($("force_busy_default_minutes").value),
     test_duration_s: Number($("test_duration_s").value),
+    activity_log: $("activity_log").checked,
+    activity_retention_days: Number($("activity_retention_days").value),
     ignore_apps: lines($("ignore_apps").value),
     ignore_devices: lines($("ignore_devices").value),
   };
@@ -63,6 +67,36 @@ function showStatus(st) {
   if (st.state === "busy" && who.length) text += ": " + who.join(", ");
   if (!st.light_connected) text += " · No Luxafor Flag found. Plug it in and it reconnects on its own.";
   $("headline").textContent = text;
+}
+
+function fmtDuration(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + " s";
+  const m = Math.round(s / 60);
+  if (m < 60) return m + " min";
+  return (m / 60).toFixed(1).replace(/\.0$/, "") + " h";
+}
+
+function fmtWhen(ms) {
+  const d = new Date(ms), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (sameDay) return "Today " + time;
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return "Yesterday " + time;
+  return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + time;
+}
+
+async function refreshActivity() {
+  const rows = await invoke("get_activity");
+  const el = $("activity");
+  if (!rows.length) { el.innerHTML = '<div class="muted">Nothing recorded yet.</div>'; return; }
+  el.innerHTML = rows.slice(0, 100).map((r) => {
+    const live = r.end_ms == null;
+    const dur = live ? "in use now" : fmtDuration(r.end_ms - r.start_ms);
+    const icon = r.kind === "cam" ? "📷" : "🎙";
+    return `<div class="act${live ? " live" : ""}"><span class="act-when">${fmtWhen(r.start_ms)}</span><span class="act-src">${icon} ${r.source.replace(/</g, "&lt;")}</span><span class="act-dur">${dur}</span></div>`;
+  }).join("");
 }
 
 async function refreshControls() {
@@ -100,6 +134,10 @@ async function init() {
 
   await listen("status", (e) => { showStatus(e.payload); refreshControls(); });
   await listen("config", (e) => fill(e.payload));
+  await listen("activity", refreshActivity);
+  await listen("show-activity", () => $("activity").scrollIntoView({ behavior: "smooth", block: "center" }));
+  await refreshActivity();
+  $("clear_activity").addEventListener("click", async () => { await invoke("clear_activity"); setTimeout(refreshActivity, 700); });
 
   $("brightness").addEventListener("input", (e) => ($("brightness_out").value = e.target.value + "%"));
   $("paused").addEventListener("change", (e) => invoke("set_paused", { paused: e.target.checked }));

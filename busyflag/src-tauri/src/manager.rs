@@ -4,7 +4,9 @@
 use crate::config::{Config, Rgb};
 use crate::detect::new_detector;
 use crate::light::Light;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -74,6 +76,126 @@ impl Status {
     }
 }
 
+/// One use of the microphone or camera by one app or device.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct ActivityEntry {
+    pub source: String,
+    /// "mic" or "cam"
+    pub kind: String,
+    /// Unix milliseconds
+    pub start_ms: u64,
+    pub end_ms: Option<u64>,
+}
+
+const ACTIVITY_KEEP: usize = 500;
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+struct Activity {
+    entries: VecDeque<ActivityEntry>,
+    /// (kind, source) -> index into `entries` of the open row
+    open: HashMap<(String, String), usize>,
+    path: std::path::PathBuf,
+}
+
+impl Activity {
+    fn load(path: std::path::PathBuf, retention_days: u64) -> Self {
+        let cutoff = now_ms().saturating_sub(retention_days * 86_400_000);
+        let mut entries: VecDeque<ActivityEntry> = std::fs::read_to_string(&path)
+            .map(|s| {
+                s.lines()
+                    .filter_map(|l| serde_json::from_str::<ActivityEntry>(l).ok())
+                    .filter(|e| e.start_ms >= cutoff)
+                    .map(|mut e| {
+                        // A row left open by a crash: close it at its start (duration unknown).
+                        if e.end_ms.is_none() {
+                            e.end_ms = Some(e.start_ms);
+                        }
+                        e
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        while entries.len() > ACTIVITY_KEEP {
+            entries.pop_front();
+        }
+        let a = Self { entries, open: HashMap::new(), path };
+        a.rewrite();
+        a
+    }
+
+    /// Bring the set of currently active (kind, source) pairs up to date. Returns true on change.
+    fn update(&mut self, current: &[(String, String)]) -> bool {
+        let now = now_ms();
+        let mut changed = false;
+        let current: std::collections::HashSet<(String, String)> = current.iter().cloned().collect();
+        // Close rows whose source went away.
+        let closed: Vec<(String, String)> = self.open.keys().filter(|k| !current.contains(*k)).cloned().collect();
+        for k in closed {
+            if let Some(i) = self.open.remove(&k) {
+                if let Some(e) = self.entries.get_mut(i) {
+                    e.end_ms = Some(now);
+                }
+                changed = true;
+            }
+        }
+        // Open rows for new sources.
+        for k in current {
+            if !self.open.contains_key(&k) {
+                self.entries.push_back(ActivityEntry { kind: k.0.clone(), source: k.1.clone(), start_ms: now, end_ms: None });
+                if self.entries.len() > ACTIVITY_KEEP {
+                    self.entries.pop_front();
+                    // Indexes shifted by one.
+                    for v in self.open.values_mut() {
+                        *v = v.saturating_sub(1);
+                    }
+                }
+                self.open.insert(k, self.entries.len() - 1);
+                changed = true;
+            }
+        }
+        if changed {
+            self.rewrite();
+        }
+        changed
+    }
+
+    fn close_all(&mut self) {
+        let now = now_ms();
+        for (_, i) in self.open.drain() {
+            if let Some(e) = self.entries.get_mut(i) {
+                e.end_ms = Some(now);
+            }
+        }
+        self.rewrite();
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.open.clear();
+        self.rewrite();
+    }
+
+    fn rewrite(&self) {
+        let mut out = String::new();
+        for e in &self.entries {
+            if let Ok(l) = serde_json::to_string(e) {
+                out.push_str(&l);
+                out.push('\n');
+            }
+        }
+        if let Some(dir) = self.path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let tmp = self.path.with_extension("jsonl.tmp");
+        if std::fs::File::create(&tmp).and_then(|mut f| f.write_all(out.as_bytes())).is_ok() {
+            let _ = std::fs::rename(&tmp, &self.path);
+        }
+    }
+}
+
 pub enum TestCmd {
     Colour(Rgb),
     Strobe(Rgb),
@@ -88,6 +210,8 @@ struct Inner {
     forced: Mutex<Forced>,
     quitting: AtomicBool,
     test: Mutex<Option<TestCmd>>,
+    activity: Mutex<Option<Activity>>,
+    clear_activity: AtomicBool,
 }
 
 #[derive(Clone)]
@@ -103,6 +227,8 @@ impl Manager {
             forced: Mutex::new(Forced::Off),
             quitting: AtomicBool::new(false),
             test: Mutex::new(None),
+            activity: Mutex::new(None),
+            clear_activity: AtomicBool::new(false),
         });
         let worker = inner.clone();
         std::thread::Builder::new()
@@ -172,6 +298,15 @@ impl Manager {
         c.clone()
     }
 
+    /// Most recent first.
+    pub fn activity(&self) -> Vec<ActivityEntry> {
+        self.0.activity.lock().unwrap().as_ref().map(|a| a.entries.iter().rev().cloned().collect()).unwrap_or_default()
+    }
+
+    pub fn clear_activity(&self) {
+        self.0.clear_activity.store(true, Ordering::Relaxed);
+    }
+
     pub fn test(&self, cmd: TestCmd) {
         *self.0.test.lock().unwrap() = Some(cmd);
     }
@@ -190,6 +325,11 @@ impl Manager {
 fn run_loop(inner: Arc<Inner>) {
     let mut light = Light::new();
     let mut det = new_detector();
+    {
+        let cfg = inner.cfg.lock().unwrap().clone();
+        let path = crate::config::activity_path(&inner.app);
+        *inner.activity.lock().unwrap() = Some(Activity::load(path, cfg.activity_retention_days));
+    }
     let mut last_busy: Option<Instant> = None;
     let mut last_colour: Option<Rgb> = None;
     let mut test_until: Option<Instant> = None;
@@ -197,9 +337,14 @@ fn run_loop(inner: Arc<Inner>) {
     // so a USB re-enumeration blip doesn't flash the tray icon.
     const DISCONNECT_GRACE: Duration = Duration::from_secs(3);
     let mut missing_since: Option<Instant> = None;
+    // Relative times in the tray submenu go stale; refresh them once a minute.
+    let mut last_activity_refresh: Option<Instant> = None;
 
     loop {
         if inner.quitting.load(Ordering::Relaxed) {
+            if let Some(a) = inner.activity.lock().unwrap().as_mut() {
+                a.close_all();
+            }
             let _ = light.off();
             let mut st = inner.status.lock().unwrap();
             st.light_connected = false;
@@ -211,6 +356,28 @@ fn run_loop(inner: Arc<Inner>) {
         let mic = det.mic_active(&cfg);
         let cam = if cfg.use_camera { det.camera_active(&cfg) } else { vec![] };
         let raw_busy = !mic.is_empty() || !cam.is_empty();
+
+        // Activity log: one row per (kind, source) while it is active.
+        if inner.clear_activity.swap(false, Ordering::Relaxed) {
+            if let Some(a) = inner.activity.lock().unwrap().as_mut() {
+                a.clear();
+                let _ = inner.app.emit("activity", ());
+            }
+        }
+        if cfg.activity_log {
+            let current: Vec<(String, String)> = mic
+                .iter()
+                .map(|s| ("mic".to_string(), s.clone()))
+                .chain(cam.iter().map(|s| ("cam".to_string(), s.clone())))
+                .collect();
+            let changed = inner.activity.lock().unwrap().as_mut().map(|a| a.update(&current)).unwrap_or(false);
+            if changed || last_activity_refresh.map(|t: Instant| t.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
+                let _ = inner.app.emit("activity", ());
+                let recent: Vec<ActivityEntry> = inner.activity.lock().unwrap().as_ref().map(|a| a.entries.iter().rev().take(5).cloned().collect()).unwrap_or_default();
+                crate::tray::update_activity(&inner.app, &recent);
+                last_activity_refresh = Some(Instant::now());
+            }
+        }
         if raw_busy {
             last_busy = Some(now);
         }
