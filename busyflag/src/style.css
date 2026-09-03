@@ -23,12 +23,14 @@ p { margin: 2px 0 0; }
 .switch, .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 main { padding: 8px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
 section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
-.row { display: flex; align-items: center; gap: 10px; }
-.row > label { width: 110px; flex: none; }
+.row { display: grid; grid-template-columns: 120px 1fr; align-items: center; column-gap: 12px; row-gap: 4px; }
+.row > label { grid-column: 1; }
+.ctl { grid-column: 2; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hint { grid-column: 2; font-size: 12px; color: var(--muted); line-height: 1.35; }
 .unit { color: var(--muted); }
 input[type=color] { width: 44px; height: 28px; padding: 0 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
-input[type=number] { width: 90px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
-input[type=range] { flex: 1; }
+input[type=number] { width: 72px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+input[type=range] { flex: 1; min-width: 120px; }
 select { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
 textarea { width: 100%; resize: vertical; padding: 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 button { font: inherit; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }

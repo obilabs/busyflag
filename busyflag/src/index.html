@@ -37,28 +37,23 @@
       <h2>Colours</h2>
       <div class="row">
         <label for="busy_colour">Busy</label>
-        <input type="color" id="busy_colour">
-        <button class="ghost" data-test="busy_colour">Try</button>
+        <div class="ctl"><input type="color" id="busy_colour"><button class="ghost" data-test="busy_colour">Try</button></div>
       </div>
       <div class="row">
         <label for="free_colour">Free</label>
-        <input type="color" id="free_colour">
-        <button class="ghost" data-test="free_colour">Try</button>
+        <div class="ctl"><input type="color" id="free_colour"><button class="ghost" data-test="free_colour">Try</button></div>
       </div>
       <div class="row">
         <label for="locked_colour">Away (locked)</label>
-        <input type="color" id="locked_colour">
-        <button class="ghost" data-test="locked_colour">Try</button>
+        <div class="ctl"><input type="color" id="locked_colour"><button class="ghost" data-test="locked_colour">Try</button></div>
       </div>
       <div class="row">
         <label for="paused_colour">Paused</label>
-        <input type="color" id="paused_colour">
-        <button class="ghost" data-test="paused_colour">Try</button>
+        <div class="ctl"><input type="color" id="paused_colour"><button class="ghost" data-test="paused_colour">Try</button></div>
       </div>
       <div class="row">
         <label for="brightness">Brightness</label>
-        <input type="range" id="brightness" min="1" max="100">
-        <output id="brightness_out">100%</output>
+        <div class="ctl"><input type="range" id="brightness" min="1" max="100"><output id="brightness_out">100%</output></div>
       </div>
     </section>
 
@@ -66,26 +61,49 @@
       <h2>Detection</h2>
       <label class="check"><input type="checkbox" id="use_camera"> Camera counts as busy</label>
       <label class="check"><input type="checkbox" id="lock_detection"> Show the away colour while the screen is locked</label>
-      <label class="check" id="process_level_row"><input type="checkbox" id="process_level_detection"> Also trust per-app audio state (macOS, helps with Bluetooth headsets)</label>
+      <label class="check" id="process_level_row"><input type="checkbox" id="process_level_detection"> Also trust per-app audio state (helps with Bluetooth headsets)</label>
       <div class="row">
         <label for="poll_interval_s">Check every</label>
-        <input type="number" id="poll_interval_s" min="0.1" max="10" step="0.1"><span class="unit">seconds</span>
+        <div class="ctl"><input type="number" id="poll_interval_s" min="0.1" max="10" step="0.1"><span class="unit">s</span></div>
       </div>
       <div class="row">
         <label for="busy_hold_s">Stay busy for</label>
-        <input type="number" id="busy_hold_s" min="0" max="60" step="0.5"><span class="unit">seconds after activity stops</span>
+        <div class="ctl"><input type="number" id="busy_hold_s" min="0" max="60" step="0.5"><span class="unit">s</span></div>
+        <div class="hint">Keeps the light red briefly after the mic is released, so quick reconnects don't flicker.</div>
       </div>
+    </section>
+
+    <section>
+      <h2>Tray actions</h2>
       <div class="row">
         <label for="force_busy_default_minutes">Force busy lasts</label>
-        <input type="number" id="force_busy_default_minutes" min="0" max="1440" step="5"><span class="unit">minutes when clicked in the tray (0 = until turned off)</span>
+        <div class="ctl">
+          <select id="force_busy_default_minutes">
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="120">2 hours</option>
+            <option value="0">Until I turn it off</option>
+          </select>
+        </div>
+        <div class="hint">For a plain click on "Force busy" in the tray. The submenu always offers every duration.</div>
       </div>
       <div class="row">
         <label for="test_duration_s">Test lasts</label>
-        <input type="number" id="test_duration_s" min="1" max="600" step="1"><span class="unit">seconds (tray "Test light" and the Try buttons)</span>
+        <div class="ctl"><input type="number" id="test_duration_s" min="1" max="600" step="1"><span class="unit">s</span></div>
+        <div class="hint">How long "Test light" and the Try buttons hold a colour.</div>
       </div>
       <div class="row">
-        <label for="fade_speed">Fade speed</label>
-        <input type="number" id="fade_speed" min="1" max="255"><span class="unit">1 = fast, 255 = slow</span>
+        <label for="fade_speed">Colour change</label>
+        <div class="ctl">
+          <select id="fade_speed">
+            <option value="1">Instant</option>
+            <option value="10">Fast</option>
+            <option value="40">Normal</option>
+            <option value="120">Slow</option>
+          </select>
+        </div>
       </div>
     </section>
 
