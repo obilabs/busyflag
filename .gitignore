@@ -1,0 +1,4 @@
+busyflag/src-tauri/target/
+busyflag/src-tauri/gen/schemas/
+.DS_Store
+__pycache__/
