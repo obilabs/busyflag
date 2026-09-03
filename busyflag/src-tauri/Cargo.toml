@@ -1,6 +1,6 @@
 [package]
 name = "busyflag"
-version = "0.1.0"
+version = "1.0.0"
 description = "Free/busy light for Luxafor Flag, driven by microphone and camera use"
 authors = ["Busyflag contributors"]
 license = "Apache-2.0"
