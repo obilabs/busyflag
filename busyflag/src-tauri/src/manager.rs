@@ -339,6 +339,9 @@ fn run_loop(inner: Arc<Inner>) {
     let mut missing_since: Option<Instant> = None;
     // Relative times in the tray submenu go stale; refresh them once a minute.
     let mut last_activity_refresh: Option<Instant> = None;
+    // For "Free (after Busy for 27 min)" style log lines.
+    let mut state_since = Instant::now();
+    let mut prev_state = State::Free;
 
     loop {
         if inner.quitting.load(Ordering::Relaxed) {
@@ -457,7 +460,26 @@ fn run_loop(inner: Arc<Inner>) {
             }
         };
         if changed {
-            log::info!("{}", status.headline());
+            if status.state != prev_state {
+                let held = state_since.elapsed().as_secs();
+                let dur = match held {
+                    0..=59 => format!("{held} s"),
+                    60..=3599 => format!("{} min", held / 60),
+                    _ => format!("{:.1} h", held as f64 / 3600.0),
+                };
+                let prev = match prev_state {
+                    State::Free => "Free",
+                    State::Busy => "Busy",
+                    State::ForcedBusy => "Busy (forced)",
+                    State::Locked => "Away (screen locked)",
+                    State::Paused => "Paused",
+                };
+                log::info!("{} (after {prev} for {dur})", status.headline());
+                state_since = now;
+                prev_state = status.state;
+            } else {
+                log::info!("{}", status.headline());
+            }
             let _ = inner.app.emit("status", &status);
             crate::tray::update(&inner.app, &status);
         }
