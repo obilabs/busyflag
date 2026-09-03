@@ -104,7 +104,7 @@ Things that make a mass deployment noisy, and where Busyflag stands:
 Verified on macOS 26.5: built-in mic, Bluetooth headset mic (Sony WH-CH710N),
 Bluetooth speakerphone mic (Mifa A10), camera, screen lock and unlock,
 unplug/replug, second launch, start at login.
-Verified on Windows 11 (2026-09-03, see `test-results/windows-test-1.*`): install
+Verified on Windows 11 (2026-09-03): install
 from the msi, flag connected, start at login, microphone via Opera, camera via
 Edge, two apps overlapping, lock and unlock, unplug and replug with automatic
 reconnect, activity CSV export.
