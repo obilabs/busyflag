@@ -67,6 +67,7 @@ No signing needed. A GPG-signed apt repository can come later.
 
 ## Version policy
 
-Semantic versioning. 1.0.0 is the first stable release. Patch releases for
+Semantic versioning. 0.x tags are published as pre-releases (unsigned builds
+while signing is set up). 1.0.0 is the first stable, signed release. Patch releases for
 fixes, minor for features, major for anything that changes config format or
 platform support.
