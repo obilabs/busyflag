@@ -72,3 +72,12 @@ file. Copy it into the `luxafor\docs\` folder as `windows-test-1.log` (or
 paste it into the chat) and it can be reviewed from the Mac.
 
 For more detail run `set RUST_LOG=debug` before `cargo tauri dev`.
+
+## Result of test 1 (2026-09-03, Windows 11)
+
+All checks passed on the first build. Log and CSV are in `test-results/`.
+Mic use by Opera and camera use by Edge were detected within a second, the
+lock showed amber, unplugging the flag was noticed on the next write and the
+flag reconnected 14 s later on its own. Follow-ups made afterwards: executables
+now show product names (Opera, Microsoft Edge) instead of `opera.exe`, and the
+app log uses local time like the CSV.

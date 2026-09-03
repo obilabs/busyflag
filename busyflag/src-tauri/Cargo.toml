@@ -27,7 +27,7 @@ env_logger = "0.11"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_RemoteDesktop"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_RemoteDesktop", "Win32_Storage_FileSystem"] }
 
 [profile.release]
 codegen-units = 1
