@@ -72,6 +72,22 @@ jobs:
         shell: bash
         run: cargo tauri build ${{ matrix.args }}
 
+      # A flat .pkg for MDM deployment (Jamf, Intune, Kandji): `installer -pkg Busyflag.pkg -target /`.
+      # Signed with the installer identity when APPLE_INSTALLER_IDENTITY is set (e.g. "Developer ID Installer: Obilabs (TEAMID)").
+      - name: Build macOS .pkg
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+        run: |
+          APP=$(find busyflag/src-tauri/target -path '*/bundle/macos/Busyflag.app' -maxdepth 6 | head -1)
+          VERSION=$(python3 -c "import json;print(json.load(open('busyflag/src-tauri/tauri.conf.json'))['version'])")
+          mkdir -p pkgroot/Applications && cp -R "$APP" pkgroot/Applications/
+          SIGN=(); [ -n "$INSTALLER_IDENTITY" ] && SIGN=(--sign "$INSTALLER_IDENTITY")
+          pkgbuild --root pkgroot --install-location / --identifier com.busyflag.desktop.pkg \
+            --version "$VERSION" "${SIGN[@]}" "Busyflag_${VERSION}_universal.pkg"
+          mkdir -p dist && mv Busyflag_*.pkg dist/
+
       - name: Collect installers
         shell: bash
         run: |

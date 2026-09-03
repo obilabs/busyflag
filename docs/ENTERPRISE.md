@@ -21,7 +21,8 @@ it starts at login, not at boot.
 |---|---|---|
 | Windows | `Busyflag_x.y.z_x64_en-US.msi` | `msiexec /i Busyflag.msi /qn` |
 | Windows | `Busyflag_x.y.z_x64-setup.exe` (NSIS) | `Busyflag-setup.exe /S` |
-| macOS | `Busyflag_x.y.z_aarch64.dmg` / `_x64.dmg` | copy `Busyflag.app` to `/Applications` with your MDM; sign and notarise the build first |
+| macOS | `Busyflag_x.y.z_universal.pkg` | `sudo installer -pkg Busyflag.pkg -target /`, or push through Jamf / Intune / Kandji |
+| macOS | `Busyflag_x.y.z_universal.dmg` | for people installing by hand |
 | Debian / Raspberry Pi OS | `busyflag_x.y.z_amd64.deb` / `_arm64.deb` | `apt install ./busyflag_*.deb` |
 | Fedora / RHEL | `busyflag-x.y.z.x86_64.rpm` | `dnf install ./busyflag-*.rpm` |
 | Any Linux | `busyflag_x.y.z_amd64.AppImage` | copy anywhere, mark executable, add the udev rule from `linux/` |
