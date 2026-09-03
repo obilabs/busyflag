@@ -102,5 +102,6 @@ Things that make a mass deployment noisy, and where Busyflag stands:
 | Localisation | English only for now. |
 
 Verified on macOS 26.5: built-in mic, Bluetooth headset mic (Sony WH-CH710N),
-camera, unplug/replug, second launch, start at login. Not yet verified: Windows
-and Linux at runtime, screen lock on macOS, and multi-user machines.
+Bluetooth speakerphone mic (Mifa A10), camera, screen lock and unlock,
+unplug/replug, second launch, start at login. Not yet verified: Windows and
+Linux at runtime, USB microphones, aggregate devices, multi-user machines.
