@@ -33,6 +33,13 @@ fn init_logging(app: &AppHandle) -> Option<std::path::PathBuf> {
         }
     }
     let mut builder = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
+    let offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
+    builder.format(move |buf, record| {
+        use std::io::Write as _;
+        let fmt = time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+        let ts = time::OffsetDateTime::now_utc().to_offset(offset).format(&fmt).unwrap_or_default();
+        writeln!(buf, "{ts} {:<5} {}", record.level(), record.args())
+    });
     let path = app.path().app_log_dir().ok().map(|d| d.join("busyflag.log"));
     let file = path.as_ref().and_then(|p| {
         std::fs::create_dir_all(p.parent()?).ok()?;
