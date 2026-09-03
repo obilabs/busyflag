@@ -6,7 +6,7 @@ you're free**. No per-app integrations: it asks the operating system directly.
 
 Works on macOS, Windows 10/11 and Linux (including Raspberry Pi). Built with
 [Tauri v2](https://tauri.app) and Rust; installers are a few megabytes.
-Source-available under a noncommercial licence (see below).
+Made by [Obilabs](https://github.com/obilabs). Open source under Apache 2.0.
 
 ## Features
 
@@ -129,9 +129,7 @@ The Python prototype that validated the protocol and the macOS calls lives in
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0):
-free for personal, hobby, educational, research and non-profit use, including
-modifying and sharing it. Commercial use, meaning use by or for a business or
-to make money, requires a separate licence from Obilabs. See `LICENSE`.
+Apache License 2.0. See `LICENSE` and `NOTICE`. Use it, change it, ship it;
+just keep the notices. The Obilabs name and logo are not licensed.
 
 Luxafor is a trademark of Greynut Ltd; this project is not affiliated.
