@@ -52,7 +52,10 @@ jobs:
       # Signing/notarisation only when the secrets exist. An empty APPLE_CERTIFICATE
       # variable would otherwise make the bundler try to import a blank certificate.
       - name: Configure macOS signing
-        if: runner.os == 'macOS' && secrets.APPLE_CERTIFICATE != ''
+        # `secrets` can't be used in `if:` directly, so it goes through an env var.
+        if: runner.os == 'macOS' && env.HAS_APPLE_CERT == 'true'
+        env:
+          HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
         shell: bash
         run: |
           {
