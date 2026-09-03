@@ -92,6 +92,15 @@ Raspberry Pi OS Desktop; on Pi OS Lite install `pipewire-pulse` or rely on the
 ALSA fallback. Autostart: add the app to `~/.config/autostart/` or run it from a
 `systemd --user` service.
 
+## Reporting a problem
+
+Tray → "Report a problem…" (or the link at the bottom of Settings) opens a
+GitHub issue with your version and OS filled in. Add what happened and paste
+the relevant lines from the app log (Settings → Activity → App log). If the
+problem is about what was or wasn't detected, attach the activity export
+(Settings → Activity → Export CSV). Nothing is sent automatically; you see and
+edit everything before submitting.
+
 ## Configuration
 
 Stored as JSON in the platform config directory (shown in Settings):

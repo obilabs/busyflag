@@ -126,6 +126,7 @@ async function init() {
   });
   $("log_path").textContent = await invoke("log_path");
   $("version").textContent = await invoke("app_version");
+  $("report").addEventListener("click", () => invoke("report_problem").catch((e) => ($("saved").textContent = "Report: " + e)));
   $("about_link").addEventListener("click", async (e) => {
     e.preventDefault();
     try { await window.__TAURI__.opener.openUrl(e.target.href); } catch (err) { console.warn(err); }

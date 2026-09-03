@@ -194,6 +194,33 @@ fn clear_activity(mgr: tauri::State<Manager>) {
     mgr.clear_activity();
 }
 
+/// Open a prefilled GitHub issue with version and OS filled in.
+#[tauri::command]
+fn report_problem() -> Result<(), String> {
+    let body = format!(
+        "**What happened**\n\n\n**Environment**\n- Busyflag {}\n- OS: {} {}\n\n**App log** (Settings → Activity → App log; paste lines around the problem)\n```\n\n```\n",
+        env!("CARGO_PKG_VERSION"),
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
+    let url = format!(
+        "https://github.com/obilabs/busyflag/issues/new?labels=bug&body={}",
+        urlencode(&body)
+    );
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+fn urlencode(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 #[tauri::command]
 fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -247,6 +274,7 @@ pub fn run() {
             config_path,
             log_path,
             app_version,
+            report_problem,
             get_activity,
             clear_activity,
             open_log,
