@@ -13,7 +13,11 @@ it starts at login, not at boot.
   udev rule on Linux (installed by the .deb).
 - Makes no network connections. There is no telemetry, no update check, no
   crash reporting. Updates are whatever your software distribution does.
-- Writes two things: a JSON config in the user's profile and a small log file.
+- Writes three things in the user's profile: a JSON config, a small log file,
+  and an activity log (which app or device used the mic or camera, when, for how
+  long). The activity log is on by default, has a retention setting (30 days),
+  can be cleared by the user, and can be disabled fleet-wide with
+  `"activity_log": false` in the managed defaults file.
 
 ## Silent installation
 
@@ -70,7 +74,9 @@ app detects an existing entry and shows the toggle as on.
 | Linux | `~/.config/com.busyflag.desktop/config.json` | `~/.local/share/com.busyflag.desktop/logs/busyflag.log` |
 
 The log rotates itself at 2 MB and contains state changes with the names of
-the apps that held the microphone. Treat it as mildly sensitive.
+the apps that held the microphone. The activity log (`activity.jsonl`, next to
+the config) holds the same information as a per-app history. Treat both as
+mildly sensitive personal data under your retention policy.
 
 ## Windows privacy setting
 
