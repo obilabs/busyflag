@@ -101,5 +101,6 @@ Things that make a mass deployment noisy, and where Busyflag stands:
 | Leftovers after uninstall | Removing the app leaves the per-user config, log and login item. Delete the paths above and `~/Library/LaunchAgents/Busyflag.plist` (macOS) or the `Run` key entry (Windows) in your uninstall script. |
 | Localisation | English only for now. |
 
-Not yet verified at the time of writing: Windows and Linux at runtime, Bluetooth
-headset microphones on macOS, and behaviour on multi-user machines.
+Verified on macOS 26.5: built-in mic, Bluetooth headset mic (Sony WH-CH710N),
+camera, unplug/replug, second launch, start at login. Not yet verified: Windows
+and Linux at runtime, screen lock on macOS, and multi-user machines.
