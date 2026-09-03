@@ -6,6 +6,16 @@ const hex = (rgb) => "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join(
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const lines = (s) => s.split("\n").map((l) => l.trim()).filter(Boolean);
 
+// Select a value, adding a custom option if the config holds something not in the list.
+function setSelect(sel, value, label) {
+  const v = String(value);
+  if (![...sel.options].some((o) => o.value === v)) {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = label(value); sel.appendChild(o);
+  }
+  sel.value = v;
+}
+
 function fill(cfg) {
   $("busy_colour").value = hex(cfg.busy_colour);
   $("free_colour").value = hex(cfg.free_colour);
@@ -18,8 +28,8 @@ function fill(cfg) {
   $("process_level_detection").checked = cfg.process_level_detection;
   $("poll_interval_s").value = cfg.poll_interval_ms / 1000;
   $("busy_hold_s").value = cfg.busy_hold_ms / 1000;
-  $("fade_speed").value = cfg.fade_speed;
-  $("force_busy_default_minutes").value = cfg.force_busy_default_minutes;
+  setSelect($("fade_speed"), cfg.fade_speed, (v) => "Custom (" + v + ")");
+  setSelect($("force_busy_default_minutes"), cfg.force_busy_default_minutes, (v) => v + " minutes");
   $("test_duration_s").value = cfg.test_duration_s;
   $("ignore_apps").value = cfg.ignore_apps.join("\n");
   $("ignore_devices").value = cfg.ignore_devices.join("\n");
