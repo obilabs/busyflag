@@ -46,7 +46,15 @@ pub enum Forced {
 
 impl Status {
     pub fn headline(&self) -> String {
-        let who = self.mic.iter().chain(self.cam.iter()).cloned().collect::<Vec<_>>();
+        let all = self.mic.iter().chain(self.cam.iter()).cloned().collect::<Vec<_>>();
+        // Keep the tray line short: two names, then "+N".
+        let who: Vec<String> = if all.len() > 2 {
+            let mut v = all[..2].to_vec();
+            v.push(format!("+{}", all.len() - 2));
+            v
+        } else {
+            all
+        };
         let s = match self.state {
             State::Free => "Free".to_string(),
             State::Busy if who.is_empty() => "Busy".to_string(),
