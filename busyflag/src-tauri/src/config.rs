@@ -186,7 +186,7 @@ fn merge_into(base: &mut serde_json::Value, over: serde_json::Value) {
 }
 
 pub fn activity_path(app: &AppHandle) -> PathBuf {
-    path(app).with_file_name("activity.jsonl")
+    path(app).with_file_name("activity.csv")
 }
 
 pub fn path(app: &AppHandle) -> PathBuf {

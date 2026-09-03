@@ -74,7 +74,7 @@ app detects an existing entry and shows the toggle as on.
 | Linux | `~/.config/com.busyflag.desktop/config.json` | `~/.local/share/com.busyflag.desktop/logs/busyflag.log` |
 
 The log rotates itself at 2 MB and contains state changes with the names of
-the apps that held the microphone. The activity log (`activity.jsonl`, next to
+the apps that held the microphone. The activity log (`activity.csv`, next to
 the config) holds the same information as a per-app history. Treat both as
 mildly sensitive personal data under your retention policy.
 

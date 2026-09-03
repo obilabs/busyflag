@@ -138,6 +138,10 @@ async function init() {
   await listen("show-activity", () => $("activity").scrollIntoView({ behavior: "smooth", block: "center" }));
   await refreshActivity();
   $("clear_activity").addEventListener("click", async () => { await invoke("clear_activity"); setTimeout(refreshActivity, 700); });
+  $("export_csv").addEventListener("click", async () => {
+    try { const p = await invoke("export_activity_csv"); $("saved").textContent = "Exported to " + p; setTimeout(() => ($("saved").textContent = ""), 4000); }
+    catch (e) { $("saved").textContent = "Export failed: " + e; }
+  });
   $("open_full_log").addEventListener("click", () => invoke("open_log").catch((e) => ($("saved").textContent = "Log: " + e)));
 
   $("brightness").addEventListener("input", (e) => ($("brightness_out").value = e.target.value + "%"));
