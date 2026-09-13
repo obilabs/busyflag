@@ -6,3 +6,7 @@ __pycache__/
 docs/test-results/
 *.local.md
 HANDOFF*.md
+
+# Secrets / local env
+.env
+.env.*

@@ -25,8 +25,9 @@ building), docs/V1-TODO.md (what is left before 1.0), docs/RELEASING.md.
 - States need a shape as well as a colour (accessibility).
 - Anything a mass deployment could trip on (crash, corrupted config, missing
   device, slow poll) gets a defensive fix and a line in docs/ENTERPRISE.md.
-- Commits: author is the GitHub no-reply identity (repo git config is set);
-  end messages with the Co-Authored-By trailer the harness provides.
+- Commits: author is the GitHub no-reply identity (repo git config is set).
+  Do not add a Co-Authored-By trailer; AI assistance is disclosed once in
+  README.md.
 - Never commit test logs or anything with usernames/paths; those live outside
   the repo in the owner's private folder.
 
