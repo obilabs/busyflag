@@ -25,8 +25,15 @@ building), docs/V1-TODO.md (what is left before 1.0), docs/RELEASING.md.
 - States need a shape as well as a colour (accessibility).
 - Anything a mass deployment could trip on (crash, corrupted config, missing
   device, slow poll) gets a defensive fix and a line in docs/ENTERPRISE.md.
-- Commits: author is the GitHub no-reply identity (repo git config is set);
-  end messages with the Co-Authored-By trailer the harness provides.
+- Commits: author as `Michael Agu <36439190+openmoto@users.noreply.github.com>`
+  (a GitHub no-reply address; a personal webmail address is rejected by GitHub
+  push protection and by the shared hygiene workflow).
+- No AI co-author trailers (`Co-authored-by: Claude ...`) and no "Generated with
+  Claude Code" lines in commits or PR bodies. AI-assisted development is
+  disclosed once, in the README footer. `.claude/settings.json` in this repo
+  turns that attribution off; keep it.
+- Work on a branch and land it through a pull request; never commit to or
+  force-push `main`.
 - Never commit test logs or anything with usernames/paths; those live outside
   the repo in the owner's private folder.
 

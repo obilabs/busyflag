@@ -2,7 +2,15 @@ busyflag/src-tauri/target/
 busyflag/src-tauri/gen/schemas/
 .DS_Store
 __pycache__/
-.claude/
+.claude/settings.local.json
 docs/test-results/
 *.local.md
 HANDOFF*.md
+
+# Secrets and local environment (commit a sanitized example instead)
+.env
+.env.*
+!.env.example
+
+# Local R&D log (backed up off-machine, never committed)
+.rd_log/
