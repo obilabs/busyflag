@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: cargo
+    directory: /busyflag/src-tauri
+    schedule: { interval: weekly }
+    groups:
+      cargo: { patterns: ["*"] }
+    # Majors are a scheduled pass, not something to chase mid-phase.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

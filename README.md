@@ -38,3 +38,7 @@ Tray → "Report a problem…" opens a prefilled issue. Questions and ideas go t
 
 Apache 2.0, copyright 2026 [Obilabs](https://github.com/obilabs). Luxafor is a
 trademark of Greynut Ltd; this project is not affiliated.
+
+---
+
+Built with AI-assisted development (Claude Code), under human direction and review.
