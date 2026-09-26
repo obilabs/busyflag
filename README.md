@@ -24,6 +24,8 @@ signing lands in 1.0.
 
 ## Documentation
 
+- [Installing](docs/INSTALL.md): macOS, Windows, Linux, including the replug step and silent installs
+
 - [App README](busyflag/README.md): features, how detection works, building from source, configuration
 - [Deploying in an organisation](docs/ENTERPRISE.md): silent install, managed defaults, logs, rollout checklist
 - [Releasing](docs/RELEASING.md) and the [road to 1.0](docs/V1-TODO.md)

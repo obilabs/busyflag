@@ -49,6 +49,10 @@ cargo lives in /opt/homebrew/opt/rustup/bin (not on the default PATH of tool
 shells). Windows needs VS Build Tools (C++); Linux needs the apt list in the
 app README.
 
+## Product status
+Feature-frozen since 2026-09-26. Accept bug fixes, signing/packaging work and
+docs; do not add features without the owner asking.
+
 ## Status ritual
 Update docs/V1-TODO.md checkboxes and push at the end of a session; that file
 is the handoff between machines.
