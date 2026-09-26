@@ -56,6 +56,9 @@ five-minute force-busy default:
 ```
 
 Precedence, lowest to highest: built-in defaults, this file, the user's config.
+The file is read on every start, so changing it reaches existing users at their
+next launch; a user's own saved value for a key still wins over it. A value
+with the wrong type in either file is logged and skipped, never the whole file.
 
 ## Start at login
 

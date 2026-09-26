@@ -11,26 +11,34 @@ use std::time::{Duration, Instant};
 /// Run a command with a hard time limit so a wedged sound server can't stall the poll loop.
 fn run_timeout(cmd: &str, args: &[&str], limit: Duration) -> Option<String> {
     let mut child = Command::new(cmd).args(args).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
+    // Drain stdout on a thread so a child that writes more than the pipe
+    // buffer (64 KiB) cannot block waiting for us to read.
+    let mut out = child.stdout.take()?;
+    let reader = std::thread::spawn(move || {
+        use std::io::Read;
+        let mut s = String::new();
+        let _ = out.read_to_string(&mut s);
+        s
+    });
     let start = Instant::now();
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                if !status.success() {
-                    return None;
-                }
-                let mut s = String::new();
-                use std::io::Read;
-                child.stdout.take()?.read_to_string(&mut s).ok()?;
-                return Some(s);
+                let s = reader.join().unwrap_or_default();
+                return if status.success() { Some(s) } else { None };
             }
             Ok(None) if start.elapsed() > limit => {
                 let _ = child.kill();
                 let _ = child.wait();
+                let _ = reader.join();
                 log::warn!("{cmd} timed out after {limit:?}");
                 return None;
             }
             Ok(None) => std::thread::sleep(Duration::from_millis(10)),
-            Err(_) => return None,
+            Err(_) => {
+                let _ = reader.join();
+                return None;
+            }
         }
     }
 }
