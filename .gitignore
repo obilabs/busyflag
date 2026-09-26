@@ -14,3 +14,15 @@ HANDOFF*.md
 
 # Local R&D log (backed up off-machine, never committed)
 .rd_log/
+
+# Private / per-machine (never commit)
+.claude/launch.json
+.claude/*.local.*
+*.local.md
+HANDOFF*.md
+docs/test-results/
+.env
+.env.*
+*.p12
+*.pem
+*.key
