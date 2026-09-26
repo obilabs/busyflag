@@ -40,7 +40,7 @@ building), docs/V1-TODO.md (what is left before 1.0), docs/RELEASING.md.
 ## Verified so far
 macOS 26.5 (built-in, Bluetooth headset and speakerphone mics, camera, lock,
 unplug/replug, start at login) and Windows 11 (mic via Opera, camera via Edge,
-lock, unplug/replug). Linux and Raspberry Pi: built, never run.
+lock, unplug/replug). Ubuntu 24.04 x86_64 (mic via ALSA fallback, camera, unplug, start at login; lock unverified). Raspberry Pi: built, never run.
 
 ## Toolchain
 Rust via rustup, `cargo install tauri-cli --version "^2" --locked`, then

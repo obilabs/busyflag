@@ -10,10 +10,11 @@
 - [ ] Windows signing: SignPath Foundation application (free, OSS) or Azure Trusted Signing
 - [ ] Enable "Immutable releases" in the repository settings
 - [ ] Run on a Raspberry Pi (deb, udev rule, PipeWire detection, tray on the Pi desktop)
-- [ ] Run on an x86_64 Linux desktop (AppImage and deb)
+- [x] Run on an x86_64 Linux desktop (deb on Ubuntu 24.04; AppImage untested)
 - [ ] Fix whatever 0.5.0 users report
 
 ## Should
+- [ ] Linux: verify screen lock on GNOME/Wayland; recommend `pulseaudio-utils` in the deb depends so app names appear
 
 - [ ] Screenshots of tray menu and Settings in the README and on the website
 - [ ] "About Busyflag" tray item with version and Obilabs link

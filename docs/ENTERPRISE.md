@@ -108,5 +108,9 @@ Verified on Windows 11 (2026-09-03): install
 from the msi, flag connected, start at login, microphone via Opera, camera via
 Edge, two apps overlapping, lock and unlock, unplug and replug with automatic
 reconnect, activity CSV export.
-Not yet verified: Linux at runtime, USB microphones, aggregate devices,
+Verified on Ubuntu 24.04 x86_64 (GNOME, X11, 2026-09): .deb install, udev
+rule, flag connected, start at login, microphone via the ALSA fallback (pactl
+was not installed), camera held by PipeWire, unplug detection. Not verified
+there: screen lock, app-name attribution (needs `pulseaudio-utils`).
+Not yet verified: Raspberry Pi, USB microphones, aggregate devices,
 multi-user machines.
