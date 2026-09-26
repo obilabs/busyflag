@@ -161,28 +161,50 @@ fn preserve_broken(p: &std::path::Path) {
 }
 
 /// Built-in defaults <- system defaults <- user config, key by key.
-fn layered(app: &AppHandle) -> (Config, bool) {
+/// Returns the effective config, the user's own keys (only those that parsed),
+/// and whether any user key was rejected.
+fn layered(app: &AppHandle) -> (Config, serde_json::Map<String, serde_json::Value>, bool) {
     let mut merged = serde_json::to_value(Config::default()).unwrap_or_default();
-    let mut have_user = false;
     let sys = system_defaults_path();
     if let Some(v) = read_json(&sys) {
         log::info!("applying system defaults from {}", sys.display());
-        merge_into(&mut merged, v);
+        merge_into(&mut merged, v, "system defaults");
     }
+    let mut user_keys = serde_json::Map::new();
+    let mut rejected = false;
     if let Some(v) = read_json(&path(app)) {
-        have_user = true;
-        merge_into(&mut merged, v);
-    }
-    let cfg = serde_json::from_value::<Config>(merged).unwrap_or_default().sanitised();
-    (cfg, have_user)
-}
-
-fn merge_into(base: &mut serde_json::Value, over: serde_json::Value) {
-    if let (Some(b), Some(o)) = (base.as_object_mut(), over.as_object()) {
-        for (k, v) in o {
-            b.insert(k.clone(), v.clone());
+        if let Some(o) = v.as_object() {
+            let before = o.len();
+            user_keys = merge_into(&mut merged, v.clone(), "config");
+            rejected = user_keys.len() != before;
         }
     }
+    let cfg = serde_json::from_value::<Config>(merged).unwrap_or_default().sanitised();
+    (cfg, user_keys, rejected)
+}
+
+/// Merge `over` into `base` one key at a time, keeping only values that
+/// deserialise into the Config field's type. A single bad value (e.g. a decimal
+/// brightness) therefore costs that one key, not the whole file.
+/// Returns the keys that were accepted.
+fn merge_into(base: &mut serde_json::Value, over: serde_json::Value, what: &str) -> serde_json::Map<String, serde_json::Value> {
+    let mut accepted = serde_json::Map::new();
+    let (Some(b), Some(o)) = (base.as_object_mut(), over.as_object()) else { return accepted };
+    for (k, v) in o {
+        if !b.contains_key(k) {
+            log::warn!("{what}: unknown key {k:?} ignored");
+            continue;
+        }
+        let mut trial = serde_json::Value::Object(b.clone());
+        trial[k] = v.clone();
+        if serde_json::from_value::<Config>(trial).is_ok() {
+            b.insert(k.clone(), v.clone());
+            accepted.insert(k.clone(), v.clone());
+        } else {
+            log::warn!("{what}: value for {k:?} has the wrong type ({v}); keeping the previous value");
+        }
+    }
+    accepted
 }
 
 pub fn activity_path(app: &AppHandle) -> PathBuf {
@@ -198,14 +220,31 @@ pub fn path(app: &AppHandle) -> PathBuf {
 }
 
 pub fn load(app: &AppHandle) -> Config {
-    preserve_broken(&path(app));
-    let (cfg, have_user) = layered(app);
-    // Write the user file so every key is visible with its effective value
-    // (first run creates it; later runs pick up newly added keys).
-    if !have_user || serde_json::to_value(&cfg).ok() != read_json(&path(app)) {
-        let _ = save(app, &cfg);
+    let p = path(app);
+    preserve_broken(&p);
+    let (cfg, user_keys, rejected) = layered(app);
+    if rejected {
+        // Keep the user's original next to the cleaned-up file.
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let backup = p.with_extension(format!("rejected-{stamp}.json"));
+        if std::fs::copy(&p, &backup).is_ok() {
+            log::warn!("some config values were rejected; original kept at {}", backup.display());
+        }
+        let _ = write_map(&p, &user_keys);
+    } else if !p.exists() {
+        // First run: create the file with every key so the format is discoverable,
+        // but from built-in defaults only, so managed defaults keep applying on later loads.
+        let _ = save(app, &Config::default());
     }
     cfg
+}
+
+fn write_map(p: &std::path::Path, m: &serde_json::Map<String, serde_json::Value>) -> Result<(), String> {
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let s = serde_json::to_string_pretty(&serde_json::Value::Object(m.clone())).map_err(|e| e.to_string())?;
+    std::fs::write(p, s).map_err(|e| e.to_string())
 }
 
 pub fn save(app: &AppHandle, cfg: &Config) -> Result<(), String> {

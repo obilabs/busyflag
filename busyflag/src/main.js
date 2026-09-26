@@ -95,7 +95,8 @@ async function refreshActivity() {
     const live = r.end_ms == null;
     const dur = live ? "in use now" : fmtDuration(r.end_ms - r.start_ms);
     const icon = r.kind === "cam" ? "📷" : "🎙";
-    return `<div class="act${live ? " live" : ""}"><span class="act-when">${fmtWhen(r.start_ms)}</span><span class="act-src">${icon} ${r.source.replace(/</g, "&lt;")}</span><span class="act-dur">${dur}</span></div>`;
+    const src = r.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return `<div class="act${live ? " live" : ""}"><span class="act-when">${fmtWhen(r.start_ms)}</span><span class="act-src">${icon} ${src}</span><span class="act-dur">${dur}</span></div>`;
   }).join("");
 }
 

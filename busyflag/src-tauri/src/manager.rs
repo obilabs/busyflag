@@ -219,9 +219,10 @@ impl Activity {
                 self.entries.push_back(ActivityEntry { kind: k.0.clone(), source: k.1.clone(), start_ms: now, end_ms: None });
                 if self.entries.len() > ACTIVITY_KEEP {
                     self.entries.pop_front();
-                    // Indexes shifted by one.
+                    // Indexes shifted by one; an open row that was at 0 is gone.
+                    self.open.retain(|_, v| *v > 0);
                     for v in self.open.values_mut() {
-                        *v = v.saturating_sub(1);
+                        *v -= 1;
                     }
                 }
                 self.open.insert(k, self.entries.len() - 1);
@@ -323,15 +324,15 @@ impl Manager {
     }
 
     pub fn config(&self) -> Config {
-        self.0.cfg.lock().unwrap().clone()
+        self.0.cfg.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn set_config(&self, cfg: Config) {
-        *self.0.cfg.lock().unwrap() = cfg;
+        *self.0.cfg.lock().unwrap_or_else(|e| e.into_inner()) = cfg;
     }
 
     pub fn status(&self) -> Status {
-        self.0.status.lock().unwrap().clone()
+        self.0.status.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn is_paused(&self) -> bool {
@@ -343,15 +344,15 @@ impl Manager {
     }
 
     pub fn forced(&self) -> Forced {
-        *self.0.forced.lock().unwrap()
+        *self.0.forced.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// `None` clears; `Some(0)` forces until cleared; `Some(n)` forces for n minutes.
     pub fn set_forced_minutes(&self, minutes: Option<u64>) {
-        *self.0.forced.lock().unwrap() = match minutes {
+        *self.0.forced.lock().unwrap_or_else(|e| e.into_inner()) = match minutes {
             None => Forced::Off,
             Some(0) => Forced::Indefinite,
-            Some(m) => Forced::Until(Instant::now() + Duration::from_secs(m * 60)),
+            Some(m) => Forced::Until(Instant::now() + Duration::from_secs(m.min(24 * 60) * 60)),
         };
     }
 
@@ -364,14 +365,14 @@ impl Manager {
     }
 
     pub fn set_use_camera(&self, v: bool) -> Config {
-        let mut c = self.0.cfg.lock().unwrap();
+        let mut c = self.0.cfg.lock().unwrap_or_else(|e| e.into_inner());
         c.use_camera = v;
         c.clone()
     }
 
     /// Most recent first.
     pub fn activity(&self) -> Vec<ActivityEntry> {
-        self.0.activity.lock().unwrap().as_ref().map(|a| a.entries.iter().rev().cloned().collect()).unwrap_or_default()
+        self.0.activity.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|a| a.entries.iter().rev().cloned().collect()).unwrap_or_default()
     }
 
     pub fn clear_activity(&self) {
@@ -379,15 +380,18 @@ impl Manager {
     }
 
     pub fn test(&self, cmd: TestCmd) {
-        *self.0.test.lock().unwrap() = Some(cmd);
+        *self.0.test.lock().unwrap_or_else(|e| e.into_inner()) = Some(cmd);
     }
 
     /// Turn the light off and stop the worker; returns once the light is off (or after a timeout).
     pub fn shutdown(&self) {
         self.0.quitting.store(true, Ordering::Relaxed);
         // The worker flips light_connected to false once it has switched the light off.
+        // It may be mid-sleep, so allow one full poll interval plus a margin.
+        let poll = self.0.cfg.lock().unwrap_or_else(|e| e.into_inner()).poll_interval_ms;
+        let limit = Duration::from_millis(poll + 700);
         let t0 = Instant::now();
-        while self.0.status.lock().unwrap().light_connected && t0.elapsed() < Duration::from_millis(1500) {
+        while self.0.status.lock().unwrap_or_else(|e| e.into_inner()).light_connected && t0.elapsed() < limit {
             std::thread::sleep(Duration::from_millis(50));
         }
     }
@@ -397,9 +401,9 @@ fn run_loop(inner: Arc<Inner>) {
     let mut light = Light::new();
     let mut det = new_detector();
     {
-        let cfg = inner.cfg.lock().unwrap().clone();
+        let cfg = inner.cfg.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let path = crate::config::activity_path(&inner.app);
-        *inner.activity.lock().unwrap() = Some(Activity::load(path, cfg.activity_retention_days));
+        *inner.activity.lock().unwrap_or_else(|e| e.into_inner()) = Some(Activity::load(path, cfg.activity_retention_days));
     }
     let mut last_busy: Option<Instant> = None;
     let mut last_colour: Option<Rgb> = None;
@@ -416,15 +420,15 @@ fn run_loop(inner: Arc<Inner>) {
 
     loop {
         if inner.quitting.load(Ordering::Relaxed) {
-            if let Some(a) = inner.activity.lock().unwrap().as_mut() {
+            if let Some(a) = inner.activity.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
                 a.close_all();
             }
             let _ = light.off();
-            let mut st = inner.status.lock().unwrap();
+            let mut st = inner.status.lock().unwrap_or_else(|e| e.into_inner());
             st.light_connected = false;
             return;
         }
-        let cfg = inner.cfg.lock().unwrap().clone();
+        let cfg = inner.cfg.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let now = Instant::now();
 
         let mic = det.mic_active(&cfg);
@@ -433,7 +437,7 @@ fn run_loop(inner: Arc<Inner>) {
 
         // Activity log: one row per (kind, source) while it is active.
         if inner.clear_activity.swap(false, Ordering::Relaxed) {
-            if let Some(a) = inner.activity.lock().unwrap().as_mut() {
+            if let Some(a) = inner.activity.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
                 a.clear();
                 let _ = inner.app.emit("activity", ());
             }
@@ -444,10 +448,10 @@ fn run_loop(inner: Arc<Inner>) {
                 .map(|s| ("mic".to_string(), s.clone()))
                 .chain(cam.iter().map(|s| ("cam".to_string(), s.clone())))
                 .collect();
-            let changed = inner.activity.lock().unwrap().as_mut().map(|a| a.update(&current)).unwrap_or(false);
+            let changed = inner.activity.lock().unwrap_or_else(|e| e.into_inner()).as_mut().map(|a| a.update(&current)).unwrap_or(false);
             if changed || last_activity_refresh.map(|t: Instant| t.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
                 let _ = inner.app.emit("activity", ());
-                let recent: Vec<ActivityEntry> = inner.activity.lock().unwrap().as_ref().map(|a| a.entries.iter().rev().take(5).cloned().collect()).unwrap_or_default();
+                let recent: Vec<ActivityEntry> = inner.activity.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|a| a.entries.iter().rev().take(5).cloned().collect()).unwrap_or_default();
                 crate::tray::update_activity(&inner.app, &recent);
                 last_activity_refresh = Some(Instant::now());
             }
@@ -459,14 +463,14 @@ fn run_loop(inner: Arc<Inner>) {
 
         // Expire a timed force-busy.
         {
-            let mut f = inner.forced.lock().unwrap();
+            let mut f = inner.forced.lock().unwrap_or_else(|e| e.into_inner());
             if let Forced::Until(t) = *f {
                 if now >= t {
                     *f = Forced::Off;
                 }
             }
         }
-        let forced = *inner.forced.lock().unwrap();
+        let forced = *inner.forced.lock().unwrap_or_else(|e| e.into_inner());
         let forced_minutes_left = match forced {
             Forced::Until(t) => Some((t.saturating_duration_since(now).as_secs() + 59) / 60),
             _ => None,
@@ -496,7 +500,7 @@ fn run_loop(inner: Arc<Inner>) {
             last_colour = None;
         }
 
-        if let Some(cmd) = inner.test.lock().unwrap().take() {
+        if let Some(cmd) = inner.test.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let r = match cmd {
                 TestCmd::Colour(c) => light.colour(c),
                 TestCmd::Strobe(c) => light.strobe(c, 10, 5),
@@ -523,7 +527,7 @@ fn run_loop(inner: Arc<Inner>) {
         };
         let status = Status { state, mic, cam, light_connected, forced_minutes_left };
         let changed = {
-            let mut cur = inner.status.lock().unwrap();
+            let mut cur = inner.status.lock().unwrap_or_else(|e| e.into_inner());
             if *cur != status {
                 *cur = status.clone();
                 true
