@@ -40,7 +40,7 @@ building), docs/V1-TODO.md (what is left before 1.0), docs/RELEASING.md.
 ## Verified so far
 macOS 26.5 (built-in, Bluetooth headset and speakerphone mics, camera, lock,
 unplug/replug, start at login) and Windows 11 (mic via Opera, camera via Edge,
-lock, unplug/replug). Linux and Raspberry Pi: built, never run.
+lock, unplug/replug). Ubuntu 24.04 x86_64 (mic via ALSA fallback, camera, unplug, start at login; lock unverified). Raspberry Pi: built, never run.
 
 ## Toolchain
 Rust via rustup, `cargo install tauri-cli --version "^2" --locked`, then
@@ -48,6 +48,10 @@ Rust via rustup, `cargo install tauri-cli --version "^2" --locked`, then
 cargo lives in /opt/homebrew/opt/rustup/bin (not on the default PATH of tool
 shells). Windows needs VS Build Tools (C++); Linux needs the apt list in the
 app README.
+
+## Product status
+Feature-frozen since 2026-09-26. Accept bug fixes, signing/packaging work and
+docs; do not add features without the owner asking.
 
 ## Status ritual
 Update docs/V1-TODO.md checkboxes and push at the end of a session; that file

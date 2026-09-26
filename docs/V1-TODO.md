@@ -1,5 +1,8 @@
 # Road to Busyflag 1.0.0
 
+**Feature-frozen 2026-09-26.** Busyflag is finished as a product; remaining
+work is signing, packaging and bug fixes only. 0.5.0 is the shipped pre-release.
+
 0.5.0 is out as an unsigned pre-release. 1.0.0 is the signed, stable release.
 
 ## Must
@@ -10,10 +13,11 @@
 - [ ] Windows signing: SignPath Foundation application (free, OSS) or Azure Trusted Signing
 - [ ] Enable "Immutable releases" in the repository settings
 - [ ] Run on a Raspberry Pi (deb, udev rule, PipeWire detection, tray on the Pi desktop)
-- [ ] Run on an x86_64 Linux desktop (AppImage and deb)
+- [x] Run on an x86_64 Linux desktop (deb on Ubuntu 24.04; AppImage untested)
 - [ ] Fix whatever 0.5.0 users report
 
 ## Should
+- [ ] Linux: verify screen lock on GNOME/Wayland (pactl note is in INSTALL.md)
 
 - [ ] Screenshots of tray menu and Settings in the README and on the website
 - [ ] "About Busyflag" tray item with version and Obilabs link
