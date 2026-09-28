@@ -31,6 +31,20 @@ signing lands in 1.0.
 - [Releasing](docs/RELEASING.md) and the [road to 1.0](docs/V1-TODO.md)
 - [Research notes](docs/RESEARCH.md) and the [Python prototype](reference/python/) that validated the protocol
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by
+[SignPath Foundation](https://signpath.org) (application pending; builds are unsigned until it is
+approved).
+
+- **Committers and reviewers:** [Michael Agu](https://github.com/openmoto), repository owner.
+- **Approvers:** [Michael Agu](https://github.com/openmoto), repository owner. Every signing request is
+  approved by hand against a tagged release.
+
+**Privacy policy:** this program will not transfer any information to other networked systems unless
+specifically requested by the user or the person installing or operating it. Busyflag has no network
+access, no accounts and no telemetry; the activity log stays on the machine as a CSV the user owns.
+
 ## Reporting a problem
 
 Tray → "Report a problem…" opens a prefilled issue. Questions and ideas go to
