@@ -1,0 +1,9 @@
+# Commits on main whose subject does not name a pull request, confirmed as history from
+# before this repository had branch protection (enabled 2026-09-10, admins bound). Verified
+# read-only: all four are Mike's own, dated 2026-09-03, none linked to a pull request. They
+# appear after the v0.5.0 tag only because the tag sits on an earlier 3 September commit.
+# Recorded 2026-09-28; see obilabs/north-star BUILD-WINDOW-2026.md.
+fa3d550 2026-09-03 Agent notes (CLAUDE.md)
+982b8ce 2026-09-03 Move test logs out of the public repo
+423bbcc 2026-09-03 Root README as the repository front page
+98b579f 2026-09-03 Docs: road to 1.0.0 checklist
