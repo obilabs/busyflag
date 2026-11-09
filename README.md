@@ -9,9 +9,6 @@ Zoom, Meet, Chrome, Slack and everything else, with no setup.
 [![Licence](https://img.shields.io/github/license/obilabs/busyflag?label=licence)](LICENSE)
 [![Build](https://github.com/obilabs/busyflag/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/obilabs/busyflag/actions/workflows/build.yml)
 
-[![Licence](https://img.shields.io/github/license/obilabs/busyflag?label=licence)](LICENSE)
-[![Build](https://github.com/obilabs/busyflag/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/obilabs/busyflag/actions/workflows/build.yml)
-
 ![Tray icon states](busyflag/docs/tray-states.png)
 
 - macOS, Windows and Linux (including Raspberry Pi), one small app each
